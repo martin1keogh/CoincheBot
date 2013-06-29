@@ -30,7 +30,7 @@ class CoincheBot(val chan:String) extends PircBot{
    * @param sender Person who called '!quit'
    */
   def quit(sender:String):Unit = {
-    if (getUsers(chan).filter(_.getNick == sender)(0).isOp) disconnect()
+    if (getUsers(chan).filter(_.getNick == sender)(0).isOp) {disconnect();sys.exit()}
     else {sendMessage(chan,sender+" : you are not op.")}
   }
 
@@ -44,7 +44,7 @@ class CoincheBot(val chan:String) extends PircBot{
 
     cmd match {
       case "!join" => playerJoins(sender)
-      case "!quit" => {quit(sender);sys.exit(0)}
+      case "!quit" => quit(sender)
     }
 
   }
