@@ -3,6 +3,7 @@ package IRCBot
 import UI.Printer
 import GameLogic.{Partie, Card, Joueur, Enchere}
 import scala.collection.immutable.SortedMap
+import com.sun.org.apache.xpath.internal.functions.WrongNumberArgsException
 
 class IrcPrinter(val chan:String) extends Printer{
 
@@ -66,7 +67,7 @@ class IrcPrinter(val chan:String) extends Printer{
       {case (cle,l) =>
         val sb = new StringBuilder
         if (l.head.famille == Partie.enchere.couleur) sb.append("(Atout) ") else sb.append("        ")
-        l.foreach({case card:Card => print(card+"; ")});
+        l.foreach({case card:Card => sb.append(card+"; ")});
         println(sb.toString())
       })
     }
@@ -82,7 +83,7 @@ class IrcPrinter(val chan:String) extends Printer{
   }
 
   def joueurAJoue(c: Card) {
-    sendMessage(Partie.currentPlayer+" a joué "+c)
+    sendMessage(Partie.currentPlayer+" joue "+c)
   }
 
   def remporte(joueur: Joueur, plis: List[(Joueur, Card)]) {
@@ -103,6 +104,11 @@ class IrcPrinter(val chan:String) extends Printer{
   }
 
   def printTeams() {
+    sendMessage("Equipes : ")
+    Partie.listJoueur.groupBy(_.Equipe).foreach({
+      case (e,j1::j2::Nil) => sendMessage(e.toString()+" : "+j1+" "+j2)
+      case (e,_) => throw new IllegalArgumentException("wrong number of player in team :"+e)
+    })
   }
 
   def printCartes() {}
