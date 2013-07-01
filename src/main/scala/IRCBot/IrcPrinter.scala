@@ -125,5 +125,5 @@ class IrcPrinter(val chan:String) extends Printer{
       if (scoreEO >= enchere.contrat) {sendMessage("Passe de "+(scoreEO - enchere.contrat))}
       else {sendMessage("Chute de "+(enchere.contrat - scoreEO))}
     }
-  }}
+  }
 }

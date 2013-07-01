@@ -14,6 +14,8 @@ class CoincheBot(val chan:String) extends PircBot{
   setName("CoincheBot")
   setMessageDelay(100)
 
+  def isOp(sender:String):Boolean = getUsers(chan).find(_.getNick == sender).get.isOp
+
   def playerJoins(sender:String):Unit = {
     if (listPlayers.length == 4) sendMessage(chan,"La table de coinche est deja pleine!")
     else if (listPlayers.contains(sender)) sendMessage(chan,sender+" : Deja a la table.")
@@ -25,18 +27,27 @@ class CoincheBot(val chan:String) extends PircBot{
       // rename the players
       Partie.listJoueur.zip(listPlayers).foreach({case (p:Joueur,name:String) => p.rename(name)})
 
-      Partie.Printer = printer
-      Enchere.Printer = printer
-      Partie.Reader = reader
-      Enchere.Reader = reader
+      Partie.Printer = printer;Enchere.Printer = printer
+      Partie.Reader = reader;Enchere.Reader = reader
 
       printer.printTeams()
 
       import scala.concurrent.ExecutionContext.Implicits.global
 
+      // start Partie on another thread
       Future{
         Partie.start()
       }
+    }
+  }
+
+  def stopGame(sender:String) : Unit = {
+    if (isOp(sender)){
+      Partie.stopGame()
+      listPlayers = List[String]()
+      sendMessage(chan,"Game was stopped")
+    } else {
+      sendMessage(chan,"Only Op can stop games ATM (todo : have players vote to stop the game)")
     }
   }
 
@@ -46,7 +57,7 @@ class CoincheBot(val chan:String) extends PircBot{
    * @param sender Person who called '!quit'
    */
   def quit(sender:String):Unit = {
-    if (getUsers(chan).filter(_.getNick == sender)(0).isOp) {disconnect();sys.exit()}
+    if (isOp(sender)) {disconnect();sys.exit()}
     else {sendMessage(chan,sender+" : you are not op.")}
   }
 
@@ -61,6 +72,7 @@ class CoincheBot(val chan:String) extends PircBot{
     cmd match {
       case "!join" => playerJoins(sender)
       case "!quit" => quit(sender)
+      case "!stop" => stopGame(sender)
       case "bid" => {
         // We're in the bidding phase
         if (reader.enchere.modifiable && sender == Partie.currentPlayer.nom) {
