@@ -88,6 +88,7 @@ class IrcPrinter(val chan:String) extends Printer{
 
   def remporte(joueur: Joueur, plis: List[(Joueur, Card)]) {
     sendMessage(joueur.nom+" remporte le plis")
+    sendMessage("----------------------------------")
   }
 
   def printFin(NS: Int, EO: Int) {
@@ -112,4 +113,17 @@ class IrcPrinter(val chan:String) extends Printer{
   }
 
   def printCartes() {}
+
+  def printScoreMain(scoreNS: Int, enchere: Enchere) {
+    sendMessage("Contrat : "+enchere.toString())
+    val prisParNS = (enchere.id % 2 == 0)
+    if (prisParNS) {
+      if (scoreNS >= enchere.contrat) {sendMessage("Passe de "+(scoreNS - enchere.contrat))}
+      else {sendMessage("Chute de "+(enchere.contrat - scoreNS))}
+    } else {
+      val scoreEO = 162 - scoreNS
+      if (scoreEO >= enchere.contrat) {sendMessage("Passe de "+(scoreEO - enchere.contrat))}
+      else {sendMessage("Chute de "+(enchere.contrat - scoreEO))}
+    }
+  }}
 }
