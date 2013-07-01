@@ -80,6 +80,8 @@ class CoincheBot(val chan:String) extends PircBot{
       case "!join" => playerJoins(sender)
       case "!quit" => quit(sender)
       case "!stop" => stopGame(sender)
+      case "!list" => printer.printListEnchere()
+      case "!help" => printer.printHelp()
       case "bid" => {
         // We're in the bidding phase
         if (Partie.state == bidding && sender == Partie.currentPlayer.nom) {
@@ -125,7 +127,7 @@ object CoincheBot extends App {
 
   val config = ConfigFactory.load()
 
-  val bot = new CoincheBot("#coinche")
+  val bot = new CoincheBot("#coinchebot")
 
   try {
     val address = config.getString("server.address")

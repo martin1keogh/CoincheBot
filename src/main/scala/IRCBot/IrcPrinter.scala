@@ -31,6 +31,19 @@ class IrcPrinter(val chan:String) extends Printer{
 
   }
 
+  def printHelp() : Unit = {
+    sendMessage("Command list : !quit; !stop; !join")
+    sendMessage("!quit : Disconnects the bot (op only)")
+    sendMessage("!stop : stops the current game")
+    sendMessage("!join : join the current table (or starts one if the first to join)")
+    sendMessage("-------------------")
+    sendMessage("Usage : ")
+    sendMessage("bidding phase : bid <value> <color> || passe")
+    sendMessage("example : bid 80 Co (or bid 80 coeur)")
+    sendMessage("valid colors : Coeur(co);Carreau(ca);Pique(P);Trefle(T);TA;SA")
+    sendMessage("playing phase : pl <card_number>")
+  }
+
   def printErreurCouleur() {
     sendMessage("Mauvaise Couleur")
   }
@@ -45,8 +58,10 @@ class IrcPrinter(val chan:String) extends Printer{
   }
 
   def printScores() {
-    sendMessage("score Nord/Sud :"+Partie.scoreTotalNS)
-    sendMessage("score Est/Ouest :"+Partie.scoreTotalEO)
+    val (a::b::Nil,c::d::Nil) = Partie.listJoueur.partition(_.id%2 == 0)
+    sendMessage("score "+a+"/"+b+" :"+Partie.scoreTotalNS)
+    sendMessage("score "+c+"/"+d+" :"
+      +Partie.scoreTotalEO)
   }
 
 
