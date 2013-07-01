@@ -11,17 +11,15 @@ class IrcReader extends Reader {
   Really need to use actors here
    */
 
-  class State(var modifiable:Boolean,var modified:Boolean, var couleur:String, var contrat:Int)
+  class State(var modified:Boolean, var couleur:String, var contrat:Int)
 
-  val enchere = new State(false,false,"",0)
+  val enchere = new State(false,"",0)
   def getCouleur: Int = {
     // Re-initialisation
     enchere.couleur = ""
     enchere.contrat = 0
     enchere.modified = false
-    enchere.modifiable = true
     while (!enchere.modified) {Thread.sleep(1000)}
-    enchere.modifiable = false
     enchere.couleur.toUpperCase match {
       case "PIQUE" | "P" => 1
       case "CARREAU" | "CA" => 2
@@ -41,13 +39,10 @@ class IrcReader extends Reader {
 
   // Are we waiting for someone to play a card ?
   // which card is it ?
-  var (modifiable,card) = (false,"")
+  var card = ""
   def getCard(jouables: List[Card], autres: List[Card]): Card = {
     card = ""
-    modifiable = true
-    println(modifiable)
     while (card.isEmpty) Thread.sleep(1000)
-    modifiable = false
     try {jouables(card.toInt)}
     catch {
       case e:NumberFormatException => getCard(jouables,autres)

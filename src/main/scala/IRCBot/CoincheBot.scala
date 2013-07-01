@@ -7,39 +7,20 @@ import scala.concurrent.Future
 
 class CoincheBot(val chan:String) extends PircBot{
 
+  import scala.concurrent.ExecutionContext.Implicits.global
+  import Partie.State._
+
+
   val printer = new IrcPrinter(chan)
   val reader = new IrcReader()
   var listPlayers = List[String]()
+
+  var f = Future{}
 
   setName("CoincheBot")
   setMessageDelay(100)
 
   def isOp(sender:String):Boolean = getUsers(chan).find(_.getNick == sender).get.isOp
-
-  def playerJoins(sender:String):Unit = {
-    if (listPlayers.length == 4) sendMessage(chan,"La table de coinche est deja pleine!")
-    else if (listPlayers.contains(sender)) sendMessage(chan,sender+" : Deja a la table.")
-    else {
-      listPlayers = sender :: listPlayers
-      sendMessage(chan,sender+" rejoint la table.")
-    }
-    if (listPlayers.length == 4) {
-      // rename the players
-      Partie.listJoueur.zip(listPlayers).foreach({case (p:Joueur,name:String) => p.rename(name)})
-
-      Partie.Printer = printer;Enchere.Printer = printer
-      Partie.Reader = reader;Enchere.Reader = reader
-
-      printer.printTeams()
-
-      import scala.concurrent.ExecutionContext.Implicits.global
-
-      // start Partie on another thread
-      Future{
-        Partie.start()
-      }
-    }
-  }
 
   def stopGame(sender:String) : Unit = {
     if (isOp(sender)){
@@ -51,6 +32,22 @@ class CoincheBot(val chan:String) extends PircBot{
     }
   }
 
+  def startGame() : Unit = {
+    // rename the players
+    Partie.listJoueur.zip(listPlayers).foreach({case (p:Joueur,name:String) => p.rename(name)})
+
+    Partie.Printer = printer;Enchere.Printer = printer
+    Partie.Reader = reader;Enchere.Reader = reader
+
+    printer.printTeams()
+
+    // start Partie on another thread
+    f = Future{
+      Partie.start()
+    }
+
+  }
+
   /**
    * Disconnects from the server, if the caller is an operator.
    *
@@ -59,6 +56,16 @@ class CoincheBot(val chan:String) extends PircBot{
   def quit(sender:String):Unit = {
     if (isOp(sender)) {disconnect();sys.exit()}
     else {sendMessage(chan,sender+" : you are not op.")}
+  }
+
+  def playerJoins(sender:String):Unit = {
+    if (listPlayers.length == 4) sendMessage(chan,"La table de coinche est deja pleine!")
+    else if (listPlayers.contains(sender)) sendMessage(chan,sender+" : Deja a la table.")
+    else {
+      listPlayers = sender :: listPlayers
+      sendMessage(chan,sender+" rejoint la table.")
+      if (listPlayers.length == 4) startGame()
+    }
   }
 
   override def onMessage(channel:String,
@@ -75,7 +82,7 @@ class CoincheBot(val chan:String) extends PircBot{
       case "!stop" => stopGame(sender)
       case "bid" => {
         // We're in the bidding phase
-        if (reader.enchere.modifiable && sender == Partie.currentPlayer.nom) {
+        if (Partie.state == bidding && sender == Partie.currentPlayer.nom) {
           val array = message.split(' ')
           if (Enchere.annonceLegal(array(1).toInt)) {
             try {
@@ -93,19 +100,15 @@ class CoincheBot(val chan:String) extends PircBot{
         }
       }
       case "passe" => {
-        if (reader.enchere.modifiable && sender == Partie.currentPlayer.nom) {
+        if (Partie.state == bidding && sender == Partie.currentPlayer.nom) {
           reader.enchere.couleur = "passe"
           reader.enchere.modified = true
         }
       }
       case "pl" => {
-        if (reader.modifiable && sender == Partie.currentPlayer.nom) {
+        if (Partie.state == playing && sender == Partie.currentPlayer.nom) {
           reader.card = message.split(' ')(1)
-        } else {println(sender+" : no good")
-          println(reader.modifiable)
-          println(Partie.currentPlayer.nom)
         }
-
       }
     }
 
