@@ -1,3 +1,5 @@
+import AssemblyKeys._
+
 name := "CoincheBot"
 
 version := "0.01"
@@ -13,3 +15,4 @@ libraryDependencies += "com.typesafe" % "config" % "1.0.1"
 
 parallelExecution in Test := false
 
+assemblySettings
