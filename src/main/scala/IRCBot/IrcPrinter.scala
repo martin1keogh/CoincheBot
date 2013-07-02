@@ -31,11 +31,17 @@ class IrcPrinter(val chan:String) extends Printer{
 
   }
 
+  def printCurrent():Unit = {
+    Enchere.listEnchere.foreach({ e => sendMessage(e.toString)})
+  }
+
   def printHelp() : Unit = {
-    sendMessage("Command list : !quit; !stop; !join")
+    sendMessage("Command list : !quit; !stop; !join; !current; !list")
     sendMessage("!quit : Disconnects the bot (op only)")
     sendMessage("!stop : stops the current game")
     sendMessage("!join : join the current table (or starts one if the first to join)")
+    sendMessage("!list : list current bids (if any)")
+    sendMessage("!current : show player currently at the table")
     sendMessage("-------------------")
     sendMessage("Usage : ")
     sendMessage("bidding phase : bid <value> <color> || passe")

@@ -83,6 +83,7 @@ class CoincheBot(val chan:String) extends PircBot{
       case "!stop" => stopGame(sender)
       case "!list" => printer.printListEnchere()
       case "!help" => printer.printHelp()
+      case "!current" => printer.printCurrent()
       case "bid" => {
         // We're in the bidding phase
         if (Partie.state == bidding && sender == Partie.currentPlayer.nom) {
@@ -111,8 +112,13 @@ class CoincheBot(val chan:String) extends PircBot{
       case "pl" => {
         if (Partie.state == playing && sender == Partie.currentPlayer.nom) {
           val array = message.split(' ')
-          reader.famille = array(1)
-          reader.valeur = array(2)
+          try {
+            reader.famille = array(1)
+            reader.valeur = array(2)
+          } catch {
+            case e:IndexOutOfBoundsException => ()
+            case e:Exception => println(e);()
+          }
         }
       }
     }
