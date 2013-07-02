@@ -69,6 +69,11 @@ class CoincheBot(val chan:String) extends PircBot{
     }
   }
 
+  def leave(sender:String):Unit = {
+    // can't leave if the game's already started
+    if (listPlayers != 4) listPlayers = listPlayers diff List(sender)
+  }
+
   override def onMessage(channel:String,
                          sender :String,
                          login  :String,
@@ -81,9 +86,10 @@ class CoincheBot(val chan:String) extends PircBot{
       case "!join" => playerJoins(sender)
       case "!quit" => quit(sender)
       case "!stop" => stopGame(sender)
-      case "!list" => printer.printListEnchere()
+      case "!list" => if (Partie.State == bidding) printer.printListEnchere()
       case "!help" => printer.printHelp()
       case "!current" => printer.printCurrent()
+      case "!leave" => leave(sender)
       case "bid" => {
         // We're in the bidding phase
         if (Partie.state == bidding && sender == Partie.currentPlayer.nom) {
@@ -113,8 +119,8 @@ class CoincheBot(val chan:String) extends PircBot{
         if (Partie.state == playing && sender == Partie.currentPlayer.nom) {
           val array = message.split(' ')
           try {
-            reader.famille = array(1)
-            reader.valeur = array(2)
+            reader.famille = array(2)
+            reader.valeur = array(1)
           } catch {
             case e:IndexOutOfBoundsException => ()
             case e:Exception => println(e);()

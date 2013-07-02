@@ -32,7 +32,8 @@ class IrcPrinter(val chan:String) extends Printer{
   }
 
   def printCurrent():Unit = {
-    Enchere.listEnchere.foreach({ e => sendMessage(e.toString)})
+    if (CoincheBot.bot.listPlayers.isEmpty) sendMessage("Aucun joueur a la table.")
+    else CoincheBot.bot.listPlayers.foreach({ e => sendMessage(e.toString)})
   }
 
   def printHelp() : Unit = {
@@ -41,13 +42,16 @@ class IrcPrinter(val chan:String) extends Printer{
     sendMessage("!stop : stops the current game")
     sendMessage("!join : join the current table (or starts one if the first to join)")
     sendMessage("!list : list current bids (if any)")
-    sendMessage("!current : show player currently at the table")
+    sendMessage("!current : show players currently at the table")
+    sendMessage("!leave : leaves the table, if the game hasn't started yet.")
     sendMessage("-------------------")
     sendMessage("Usage : ")
     sendMessage("bidding phase : bid <value> <color> || passe")
     sendMessage("example : bid 80 Co (or bid 80 coeur)")
     sendMessage("valid colors : Coeur(co);Carreau(ca);Pique(P);Trefle(T);TA;SA")
-    sendMessage("playing phase : pl <card_number>")
+    sendMessage("playing phase : pl <value> <color>")
+    sendMessage("valid values : Sept(7) -...- Dix(10) - V/D/R/AS - J/Q/K/AS - Valet/Dame/Roi/As")
+    sendMessage("example : pl 8 Co  || pl as T")
   }
 
   def printErreurCouleur() {
