@@ -38,6 +38,7 @@ class CoincheBot(val chan:String) extends PircBot{
 
     Partie.Printer = printer;Enchere.Printer = printer
     Partie.Reader = reader;Enchere.Reader = reader
+    Partie.printOnlyOnce = true
 
     printer.printTeams()
 

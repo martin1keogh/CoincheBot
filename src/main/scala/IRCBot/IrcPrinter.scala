@@ -141,4 +141,19 @@ class IrcPrinter(val chan:String) extends Printer{
       else {sendMessage("Chute de "+(enchere.contrat - scoreEO))}
     }
   }
+
+  def printCardsToAll(couleurAtout: Int) {
+    def println(s:String) = sendMessage(Partie.currentPlayer,s)
+    def aux(j:Joueur):Unit = {
+    SortedMap(j.main.zipWithIndex.groupBy(_._1.famille).toSeq:_*).foreach(
+    {case (cle,l) =>
+      val sb = new StringBuilder
+      if (l.head._1.famille == Partie.enchere.couleur) sb.append("(Atout) ") else sb.append("        ")
+      l.foreach({case (card:Card,index:Int) => sb.append(card+"; ")});
+      println(sb.toString())
+    })
+    }
+    Partie.listJoueur.foreach(aux(_))
+
+  }
 }
