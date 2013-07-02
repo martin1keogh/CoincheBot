@@ -1,9 +1,7 @@
 package IRCBot
 
 import UI.Reader
-import GameLogic.{Partie, Card}
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration._
+import GameLogic.Card
 
 class IrcReader extends Reader {
 
@@ -39,14 +37,18 @@ class IrcReader extends Reader {
 
   // Are we waiting for someone to play a card ?
   // which card is it ?
-  var card = ""
+  var (famille,valeur) = ("","")
   def getCard(jouables: List[Card], autres: List[Card]): Card = {
-    card = ""
-    while (card.isEmpty) Thread.sleep(1000)
-    try {jouables(card.toInt)}
+    famille= ""
+    valeur = ""
+    while (famille.isEmpty || valeur.isEmpty) Thread.sleep(1000)
+    val card = new Card(Card.stringToFamille(famille)*8 + Card.stringToValeur(valeur))
+    try {jouables.find(_ == card).get}
     catch {
       case e:NumberFormatException => getCard(jouables,autres)
       case e:IndexOutOfBoundsException => getCard(jouables,autres)
+      case e:NoSuchElementException => {CoincheBot.bot.sendMessage(CoincheBot.bot.chan,"Cette carte n'est pas jouable.")
+                                        getCard(jouables,autres)}
     }
   }
 

@@ -109,7 +109,9 @@ class CoincheBot(val chan:String) extends PircBot{
       }
       case "pl" => {
         if (Partie.state == playing && sender == Partie.currentPlayer.nom) {
-          reader.card = message.split(' ')(1)
+          val array = message.split(' ')
+          reader.famille = array(1)
+          reader.valeur = array(2)
         }
       }
     }
@@ -128,6 +130,9 @@ object CoincheBot extends App {
   val config = ConfigFactory.load()
 
   val bot = new CoincheBot("#coinchebot")
+
+  //debug
+  bot.setVerbose(true)
 
   try {
     val address = config.getString("server.address")
