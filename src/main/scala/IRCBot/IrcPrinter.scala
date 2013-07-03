@@ -3,7 +3,6 @@ package IRCBot
 import UI.Printer
 import GameLogic.{Partie, Card, Joueur, Enchere}
 import scala.collection.immutable.SortedMap
-import com.sun.org.apache.xpath.internal.functions.WrongNumberArgsException
 
 class IrcPrinter(val chan:String) extends Printer{
 
@@ -18,7 +17,7 @@ class IrcPrinter(val chan:String) extends Printer{
   def printCardsToAll() {
     def printFamille(j:Joueur,cards:List[Card]):Unit = {
       val couleur = cards.head.familleToString
-      val valeurs = cards.map(_.valeurToString).mkString(", ")
+      val valeurs = cards.sortBy(_.pointsToutAtout).map(_.valeurToString).mkString(", ")
       sendMessage(j,couleur+" : "+valeurs)
     }
     def aux(j:Joueur):Unit = {
@@ -47,6 +46,7 @@ class IrcPrinter(val chan:String) extends Printer{
     sendMessage("!list : list current bids (if any)")
     sendMessage("!current : show players currently at the table")
     sendMessage("!leave : leaves the table, if the game hasn't started yet.")
+    sendMessage("!cards : shows the player his cards (query)")
     sendMessage("-------------------")
     sendMessage("Usage : ")
     sendMessage("bidding phase : bid <value> <color> || passe")
@@ -118,8 +118,24 @@ class IrcPrinter(val chan:String) extends Printer{
   }
 
   def remporte(joueur: Joueur, plis: List[(Joueur, Card)]) {
-    sendMessage(joueur.nom+" remporte le plis")
+    sendMessage(joueur.nom+" remporte le pli")
     sendMessage("----------------------------------")
+  }
+
+  def printCartes(s:String):Unit = {
+    val j = Partie.listJoueur.find(_.nom == s).get
+    def aux(j:Joueur):Unit = {
+      sendMessage(j,"-----------------------")
+      SortedMap(j.main.zipWithIndex.groupBy(_._1.famille).toSeq:_*).foreach(
+      {case (cle,l) =>
+        val sb = new StringBuilder
+        if (l.head._1.famille == Partie.enchere.couleur) sb.append("(Atout) ") else sb.append("        ")
+        l.foreach({case (card:Card,index:Int) => sb.append(card+"; ")});
+        sendMessage(j,sb.toString())
+      })
+      sendMessage(j,"-----------------------")
+    }
+    aux(j)
   }
 
   def printFin(NS: Int, EO: Int) {

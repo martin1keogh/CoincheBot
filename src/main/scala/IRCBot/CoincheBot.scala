@@ -18,16 +18,17 @@ class CoincheBot(val chan:String) extends PircBot{
   var f = Future{}
 
   setName("CoincheBot")
-  setMessageDelay(100)
+  setMessageDelay(10)
 
   def isOp(sender:String):Boolean = getUsers(chan).find(_.getNick == sender).get.isOp
 
   def stopGame(sender:String) : Unit = {
-    if (isOp(sender)){
+    if (isOp(sender) || listPlayers.contains(sender)){ // not sure about the second condition, probably going to make it a vote
       Partie.stopGame()
       listPlayers = List[String]()
       sendMessage(chan,"Game was stopped")
-    } else {
+    } else if (Partie.state == stopped) sendMessage(chan,"Not game running atm")
+    else {
       sendMessage(chan,"Only Op can stop games ATM (todo : have players vote to stop the game)")
     }
   }
@@ -86,17 +87,21 @@ class CoincheBot(val chan:String) extends PircBot{
       case "!join" => playerJoins(sender)
       case "!quit" => quit(sender)
       case "!stop" => stopGame(sender)
-      case "!list" => if (Partie.State == bidding) printer.printListEnchere()
+      case "!list" => if (Partie.State != stopped) printer.printListEnchere()
       case "!help" => printer.printHelp()
       case "!current" => printer.printCurrent()
       case "!leave" => leave(sender)
+      case "!cards" => if (listPlayers.contains(sender)) printer.printCartes(sender)
       case "bid" => {
         // We're in the bidding phase
         if (Partie.state == bidding && sender == Partie.currentPlayer.nom) {
+          // "bid 80 Co".split(' ')
           val array = message.split(' ')
           if (Enchere.annonceLegal(array(1).toInt)) {
             try {
+              // "Co"
               reader.enchere.couleur = array(2)
+              // "80".toInt
               reader.enchere.contrat = array(1).toInt
               reader.enchere.modified = true}
             catch {
@@ -122,11 +127,13 @@ class CoincheBot(val chan:String) extends PircBot{
             reader.famille = array(2)
             reader.valeur = array(1)
           } catch {
-            case e:IndexOutOfBoundsException => ()
+            case e:IndexOutOfBoundsException => (println("out of bounds"+e))
             case e:Exception => println(e);()
           }
         }
+        else println(Partie.state+" : "+Partie.currentPlayer.nom)
       }
+      case _ => ()
     }
 
 
