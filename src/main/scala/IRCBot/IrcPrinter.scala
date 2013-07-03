@@ -189,4 +189,8 @@ class IrcPrinter(val chan:String) extends Printer{
     Partie.listJoueur.foreach(aux(_))
 
   }
+
+  def printCoinche() {
+    sendMessage("Coinché !! 5 secondes pour surcoinché (commande : !sur)")
+  }
 }

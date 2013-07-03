@@ -1,7 +1,7 @@
 package IRCBot
 
 import UI.Reader
-import GameLogic.Card
+import GameLogic.{Enchere, Card}
 
 class IrcReader extends Reader {
 
@@ -11,13 +11,19 @@ class IrcReader extends Reader {
 
   class State(var modified:Boolean, var couleur:String, var contrat:Int)
 
+
   val enchere = new State(false,"",0)
+  var coinche = false
   def getCouleur: Int = {
     // Re-initialisation
     enchere.couleur = ""
     enchere.contrat = 0
     enchere.modified = false
-    while (!enchere.modified) {Thread.sleep(100)}
+    coinche = false
+    while (!enchere.modified) {
+      Thread.sleep(100)
+      if (coinche) {Enchere.current.get.coinche = 2;;return 0}
+    }
     enchere.couleur.toUpperCase match {
       case "PIQUE" | "P" => 1
       case "CARREAU" | "CA" => 2
@@ -44,6 +50,7 @@ class IrcReader extends Reader {
     while (famille.isEmpty || valeur.isEmpty) {Thread.sleep(100)}
     if (Card.stringToFamille(famille) == -1 || Card.stringToValeur(valeur) == -1) getCard(jouables,autres)
     val card = new Card(Card.stringToFamille(famille)*8 + Card.stringToValeur(valeur))
+    println(jouables.toString())
     try jouables.find(_.equals(card)).get
     catch {
       case e:NumberFormatException => {println(e);getCard(jouables,autres)}

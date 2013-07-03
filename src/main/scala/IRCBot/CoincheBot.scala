@@ -3,7 +3,8 @@ package IRCBot
 import org.jibble.pircbot._
 import com.typesafe.config._
 import GameLogic.{Enchere, Joueur, Partie}
-import scala.concurrent.Future
+import scala.concurrent.{Await,Future}
+import scala.concurrent.duration.Duration
 
 class CoincheBot(val chan:String) extends PircBot{
 
@@ -14,8 +15,6 @@ class CoincheBot(val chan:String) extends PircBot{
   val printer = new IrcPrinter(chan)
   val reader = new IrcReader()
   var listPlayers = List[String]()
-
-  var f = Future{}
 
   setName("CoincheBot")
   setMessageDelay(10)
@@ -44,10 +43,8 @@ class CoincheBot(val chan:String) extends PircBot{
     printer.printTeams()
 
     // start Partie on another thread
-    f = Future{
-      Partie.start()
-    }
-
+    Await.result(Future{Partie.start()},Duration.Inf)
+    listPlayers = List()
   }
 
   /**
@@ -133,8 +130,29 @@ class CoincheBot(val chan:String) extends PircBot{
         }
         else println(Partie.state+" : "+Partie.currentPlayer.nom)
       }
+      case "!coinche" => {
+        if (Enchere.current.isDefined && Enchere.current.get.contrat > 80){
+          val idEnchere = Enchere.current.get.id
+          val coincheur = Partie.listJoueur.find(_.nom == sender)
+          if (coincheur.isDefined && (coincheur.get.id % 2) != (idEnchere % 2))
+          {
+            reader.coinche = true
+          }
+        }
+      }
+      case "!sur" => {
+        if (Enchere.current.isDefined && Enchere.current.get.coinche == 2){
+          val idEnchere = Enchere.current.get.id
+          val coincheur = Partie.listJoueur.find(_.nom == sender)
+          if (coincheur.isDefined && (coincheur.get.id % 2) == (idEnchere % 2))
+          {
+            Enchere.current.get.coinche = 4
+          }
+        }
+      }
       case _ => ()
     }
+
 
 
   }
