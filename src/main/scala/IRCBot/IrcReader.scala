@@ -17,7 +17,7 @@ class IrcReader extends Reader {
     enchere.couleur = ""
     enchere.contrat = 0
     enchere.modified = false
-    while (!enchere.modified) {Thread.sleep(1000)}
+    while (!enchere.modified) {Thread.sleep(100)}
     enchere.couleur.toUpperCase match {
       case "PIQUE" | "P" => 1
       case "CARREAU" | "CA" => 2
@@ -41,13 +41,13 @@ class IrcReader extends Reader {
   def getCard(jouables: List[Card], autres: List[Card]): Card = {
     famille= ""
     valeur = ""
-    while (famille.isEmpty || valeur.isEmpty) Thread.sleep(1000)
+    while (famille.isEmpty || valeur.isEmpty) {Thread.sleep(100)}
+    if (Card.stringToFamille(famille) == -1 || Card.stringToValeur(valeur) == -1) getCard(jouables,autres)
     val card = new Card(Card.stringToFamille(famille)*8 + Card.stringToValeur(valeur))
-    try {println("playing : "+card)
-      jouables.find(_.equals(card)).get}
+    try jouables.find(_.equals(card)).get
     catch {
-      case e:NumberFormatException => getCard(jouables,autres)
-      case e:IndexOutOfBoundsException => getCard(jouables,autres)
+      case e:NumberFormatException => {println(e);getCard(jouables,autres)}
+      case e:IndexOutOfBoundsException => {println(e);getCard(jouables,autres)}
       case e:NoSuchElementException => {CoincheBot.bot.sendMessage(CoincheBot.bot.chan,"Cette carte n'est pas jouable.")
                                         getCard(jouables,autres)}
     }
