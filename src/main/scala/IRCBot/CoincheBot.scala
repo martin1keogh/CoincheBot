@@ -152,9 +152,11 @@ class CoincheBot(val chan:String) extends PircBot{
       }
       case _ => ()
     }
+  }
 
-
-
+  override def onNickChange(oldNick:String,login:String,hostname:String,newNick:String):Unit = {
+    listPlayers.map(s => if (s == oldNick) newNick)
+    Partie.listJoueur.foreach(j => if (j.nom == oldNick) j.rename(newNick))
   }
 
   def start():Unit = {
