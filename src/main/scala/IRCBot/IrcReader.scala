@@ -43,7 +43,8 @@ class IrcReader extends Reader {
     valeur = ""
     while (famille.isEmpty || valeur.isEmpty) Thread.sleep(1000)
     val card = new Card(Card.stringToFamille(famille)*8 + Card.stringToValeur(valeur))
-    try {jouables.find(_ == card).get}
+    try {println("playing : "+card)
+      jouables.find(_.equals(card)).get}
     catch {
       case e:NumberFormatException => getCard(jouables,autres)
       case e:IndexOutOfBoundsException => getCard(jouables,autres)
