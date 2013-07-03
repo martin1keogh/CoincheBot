@@ -33,7 +33,10 @@ class IrcPrinter(val chan:String) extends Printer{
 
   def printCurrent():Unit = {
     if (CoincheBot.bot.listPlayers.isEmpty) sendMessage("Aucun joueur a la table.")
-    else CoincheBot.bot.listPlayers.foreach({ e => sendMessage(e.toString)})
+    else {
+      sendMessage("Joueur deja a la table : ")
+      CoincheBot.bot.listPlayers.foreach({ e => sendMessage(e.toString)})
+    }
   }
 
   def printHelp() : Unit = {
@@ -63,8 +66,11 @@ class IrcPrinter(val chan:String) extends Printer{
   }
 
   def printListEnchere() {
-    sendMessage("Liste des encheres precedentes :")
-    Enchere.listEnchere.reverse.foreach({enchere => sendMessage(enchere.toString)})
+    if (Enchere.listEnchere.isEmpty) { sendMessage("Aucune enchere pour le moment")}
+    else {
+      sendMessage("Liste des encheres precedentes :")
+      Enchere.listEnchere.reverse.foreach({enchere => sendMessage(enchere.toString)})
+    }
   }
 
   def printScores() {
@@ -153,15 +159,16 @@ class IrcPrinter(val chan:String) extends Printer{
   }
 
   def printCardsToAll(couleurAtout: Int) {
-    def println(s:String) = sendMessage(Partie.currentPlayer,s)
     def aux(j:Joueur):Unit = {
-    SortedMap(j.main.zipWithIndex.groupBy(_._1.famille).toSeq:_*).foreach(
-    {case (cle,l) =>
-      val sb = new StringBuilder
-      if (l.head._1.famille == Partie.enchere.couleur) sb.append("(Atout) ") else sb.append("        ")
-      l.foreach({case (card:Card,index:Int) => sb.append(card+"; ")});
-      println(sb.toString())
-    })
+      sendMessage(j,"-----------------------")
+      SortedMap(j.main.zipWithIndex.groupBy(_._1.famille).toSeq:_*).foreach(
+      {case (cle,l) =>
+        val sb = new StringBuilder
+        if (l.head._1.famille == Partie.enchere.couleur) sb.append("(Atout) ") else sb.append("        ")
+        l.foreach({case (card:Card,index:Int) => sb.append(card+"; ")});
+        sendMessage(j,sb.toString())
+      })
+      sendMessage(j,"-----------------------")
     }
     Partie.listJoueur.foreach(aux(_))
 
