@@ -39,7 +39,7 @@ class IrcPrinter(val chan:String) extends Printer{
   }
 
   def printHelp(chan:String) : Unit = {
-    CoincheBot.bot.sendMessage(chan,"Command list : !quit, !stop, !join, !current, !list, !cards")
+    CoincheBot.bot.sendMessage(chan,"Command list : !quit, !stop, !join, !current, !encheres, !cards, !leave, !score")
     CoincheBot.bot.sendMessage(chan,"While playing : bid, pl, !coinche")
     CoincheBot.bot.sendMessage(chan,"!help <cmd> for more information on <cmd>")
   }
@@ -50,18 +50,24 @@ class IrcPrinter(val chan:String) extends Printer{
       case "!quit" => sendMessage("!quit : Disconnects the bot (op only)")
       case "!stop" => sendMessage("!stop : stops the current game")
       case "!join" => sendMessage("!join : join the current table (or starts one if the first to join)")
-      case "!list" => sendMessage("!list : list current bids (if any)")
+      case "!encheres" => sendMessage("!list : list current bids (if any)")
       case "!current" => sendMessage("!current : show players currently at the table")
-      case "!leave" =>sendMessage("!leave : leaves the table, if the game hasn't started yet.")
+      case "!leave" => sendMessage("!leave : leaves the table, if the game hasn't started yet.")
       case "!cards" => sendMessage("!cards : shows the player his cards (query)")
       case "!coinche" => sendMessage("!coinche : coinche the current bid (!sur to surcoinche)")
-      case "bid" => {sendMessage("During bidding phase : bid <value> <color> || passe")
+      case "!score" => sendMessage("!score : print score")
+      case "bid" => {
+        sendMessage("During bidding phase : bid <value> <color> || passe")
         sendMessage("example : bid 80 Co (or bid 80 coeur)")
-        sendMessage("value : 80 -...- 160, 250 and 400")
-        sendMessage("valid colors : Coeur(co);Carreau(ca);Pique(P);Trefle(T);TA;SA")}
-      case "pl" => {sendMessage("During playing phase : pl <value> <color>")
+        sendMessage("value  : 80 -...- 160, 250 and 400")
+        sendMessage("colors : Coeur(co);Carreau(ca);Pique(P);Trefle(T);TA;SA")
+      }
+      case "pl" => {
+        sendMessage("During playing phase : pl <value> [<color>]")
         sendMessage("valid values : Sept(7) -...- Dix(10) - V/D/R/AS - J/Q/K/AS - Valet/Dame/Roi/As")
-        sendMessage("example : pl 8 Co  || pl as T")}
+        sendMessage("examples : pl 8 Co  || pl as T")
+        sendMessage("""/!\ : if <color> is not specified and multiple <value> cards are playables, the color is picked at random.""")
+      }
       case _ => sendMessage(cmd+" non trouvée.")
     }
   }
@@ -85,8 +91,7 @@ class IrcPrinter(val chan:String) extends Printer{
   def printScores() {
     val (a::b::Nil,c::d::Nil) = Partie.listJoueur.partition(_.id%2 == 0)
     sendMessage("score "+a+"/"+b+" :"+Partie.scoreTotalNS)
-    sendMessage("score "+c+"/"+d+" :"
-      +Partie.scoreTotalEO)
+    sendMessage("score "+c+"/"+d+" :"+Partie.scoreTotalEO)
   }
 
 
@@ -115,6 +120,7 @@ class IrcPrinter(val chan:String) extends Printer{
   }
 
   def tourJoueurEnchere(joueur: Joueur) {
+    if (Enchere.current.isDefined) sendMessage(Enchere.current.get.toString())
     sendMessage("A "+joueur.nom+" de parler.")
   }
 

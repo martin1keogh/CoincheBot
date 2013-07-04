@@ -43,7 +43,7 @@ class CoincheBot(val chan:String) extends PircBot{
     printer.printTeams()
 
     // start Partie on another thread
-    Future{Partie.start()}
+    Future{Partie.start();listPlayers=List()}
   }
 
   /**
@@ -68,7 +68,7 @@ class CoincheBot(val chan:String) extends PircBot{
 
   def leave(sender:String):Unit = {
     // can't leave if the game's already started
-    if (listPlayers != 4) listPlayers = listPlayers diff List(sender)
+    if (Partie.state == stopped) listPlayers = listPlayers diff List(sender)
   }
 
   override def onMessage(channel:String,
@@ -83,12 +83,13 @@ class CoincheBot(val chan:String) extends PircBot{
       case "!join" => playerJoins(sender)
       case "!quit" => quit(sender)
       case "!stop" => stopGame(sender)
-      case "!list" => if (Partie.State != stopped) printer.printListEnchere()
+      case "!encheres" => if (Partie.State != stopped) printer.printListEnchere()
       case "!help" => if (message.trim() == "!help") printer.printHelp(channel)
                       else {println(channel);printer.printHelp(channel,message.split(' ')(1))}
       case "!current" => printer.printCurrent()
       case "!leave" => leave(sender)
       case "!cards" => if (listPlayers.contains(sender)) printer.printCartes(sender)
+      case "!score" => printer.printScores()
       case "bid" => {
         // We're in the bidding phase
         if (Partie.state == bidding && sender == Partie.currentPlayer.nom) {
@@ -120,11 +121,12 @@ class CoincheBot(val chan:String) extends PircBot{
       case "pl" => {
         if (Partie.state == playing && sender == Partie.currentPlayer.nom) {
           val array = message.split(' ')
-          try {
+          if (array.length == 2) reader.valeur = array(1)
+          else try {
             reader.famille = array(2)
             reader.valeur = array(1)
           } catch {
-            case e:IndexOutOfBoundsException => (println("out of bounds"+e))
+            case e:IndexOutOfBoundsException => print(e);()
             case e:Exception => println(e);()
           }
         }
@@ -155,15 +157,12 @@ class CoincheBot(val chan:String) extends PircBot{
   }
 
   override def onPrivateMessage(sender:String, login:String, hostname:String, msg:String):Unit = {
+
+    // command not allowed in queries
+    val notOnQuery = List[String]("!join","!quit","!stop","!leave")
     val cmd = msg.split(' ')(0)
 
-    println("query from "+sender)
-
-    cmd match {
-      case "!help" => if (msg.trim() == "!help") printer.printHelp(sender)
-                      else {println(sender);printer.printHelp(sender,msg.split(' ')(1))}
-    }
-
+    if (!notOnQuery.contains(cmd)) onMessage(sender,sender,login,hostname,msg)
   }
 
   override def onNickChange(oldNick:String,login:String,hostname:String,newNick:String):Unit = {
