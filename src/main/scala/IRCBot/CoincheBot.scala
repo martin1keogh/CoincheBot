@@ -17,7 +17,7 @@ class CoincheBot(val chan:String) extends PircBot{
   var listPlayers = List[String]()
 
   setName("CoincheBot")
-  setMessageDelay(10)
+  setMessageDelay(100)
 
   def isOp(sender:String):Boolean = getUsers(chan).find(_.getNick == sender).get.isOp
 
@@ -43,8 +43,7 @@ class CoincheBot(val chan:String) extends PircBot{
     printer.printTeams()
 
     // start Partie on another thread
-    Await.result(Future{Partie.start()},Duration.Inf)
-    listPlayers = List()
+    Future{Partie.start()}
   }
 
   /**
@@ -85,7 +84,8 @@ class CoincheBot(val chan:String) extends PircBot{
       case "!quit" => quit(sender)
       case "!stop" => stopGame(sender)
       case "!list" => if (Partie.State != stopped) printer.printListEnchere()
-      case "!help" => printer.printHelp()
+      case "!help" => if (message.trim() == "!help") printer.printHelp(channel)
+                      else {println(channel);printer.printHelp(channel,message.split(' ')(1))}
       case "!current" => printer.printCurrent()
       case "!leave" => leave(sender)
       case "!cards" => if (listPlayers.contains(sender)) printer.printCartes(sender)
@@ -154,8 +154,21 @@ class CoincheBot(val chan:String) extends PircBot{
     }
   }
 
+  override def onPrivateMessage(sender:String, login:String, hostname:String, msg:String):Unit = {
+    val cmd = msg.split(' ')(0)
+
+    println("query from "+sender)
+
+    cmd match {
+      case "!help" => if (msg.trim() == "!help") printer.printHelp(sender)
+                      else {println(sender);printer.printHelp(sender,msg.split(' ')(1))}
+    }
+
+  }
+
   override def onNickChange(oldNick:String,login:String,hostname:String,newNick:String):Unit = {
-    listPlayers.map(s => if (s == oldNick) newNick)
+    println(oldNick+" to "+newNick)
+    listPlayers = listPlayers.map(s => if (s == oldNick) newNick else oldNick)
     Partie.listJoueur.foreach(j => if (j.nom == oldNick) j.rename(newNick))
   }
 

@@ -17,7 +17,7 @@ class IrcPrinter(val chan:String) extends Printer{
   def printCardsToAll() {
     def printFamille(j:Joueur,cards:List[Card]):Unit = {
       val couleur = cards.head.familleToString
-      val valeurs = cards.sortBy(_.pointsToutAtout).map(_.valeurToString).mkString(", ")
+      val valeurs = cards.sortBy(-_.pointsToutAtout).map(_.valeurToString).mkString(", ")
       sendMessage(j,couleur+" : "+valeurs)
     }
     def aux(j:Joueur):Unit = {
@@ -38,25 +38,32 @@ class IrcPrinter(val chan:String) extends Printer{
     }
   }
 
-  def printHelp() : Unit = {
-    sendMessage("Command list : !quit; !stop; !join; !current; !list")
-    sendMessage("!quit : Disconnects the bot (op only)")
-    sendMessage("!stop : stops the current game")
-    sendMessage("!join : join the current table (or starts one if the first to join)")
-    sendMessage("!list : list current bids (if any)")
-    sendMessage("!current : show players currently at the table")
-    sendMessage("!leave : leaves the table, if the game hasn't started yet.")
-    sendMessage("!cards : shows the player his cards (query)")
-    sendMessage("!coinche : coinche the current bid (!sur to surcoinche)")
-    sendMessage("----------------------------------------------------------")
-    sendMessage("Usage : ")
-    sendMessage("bidding phase : bid <value> <color> || passe")
-    sendMessage("example : bid 80 Co (or bid 80 coeur)")
-    sendMessage("value : 80 -...- 160, 250 and 400")
-    sendMessage("valid colors : Coeur(co);Carreau(ca);Pique(P);Trefle(T);TA;SA")
-    sendMessage("playing phase : pl <value> <color>")
-    sendMessage("valid values : Sept(7) -...- Dix(10) - V/D/R/AS - J/Q/K/AS - Valet/Dame/Roi/As")
-    sendMessage("example : pl 8 Co  || pl as T")
+  def printHelp(chan:String) : Unit = {
+    CoincheBot.bot.sendMessage(chan,"Command list : !quit, !stop, !join, !current, !list, !cards")
+    CoincheBot.bot.sendMessage(chan,"While playing : bid, pl, !coinche")
+    CoincheBot.bot.sendMessage(chan,"!help <cmd> for more information on <cmd>")
+  }
+
+  def printHelp(chan:String, cmd:String) : Unit = {
+    def sendMessage(s:String) = CoincheBot.bot.sendMessage(chan,s)
+    cmd match{
+      case "!quit" => sendMessage("!quit : Disconnects the bot (op only)")
+      case "!stop" => sendMessage("!stop : stops the current game")
+      case "!join" => sendMessage("!join : join the current table (or starts one if the first to join)")
+      case "!list" => sendMessage("!list : list current bids (if any)")
+      case "!current" => sendMessage("!current : show players currently at the table")
+      case "!leave" =>sendMessage("!leave : leaves the table, if the game hasn't started yet.")
+      case "!cards" => sendMessage("!cards : shows the player his cards (query)")
+      case "!coinche" => sendMessage("!coinche : coinche the current bid (!sur to surcoinche)")
+      case "bid" => {sendMessage("During bidding phase : bid <value> <color> || passe")
+        sendMessage("example : bid 80 Co (or bid 80 coeur)")
+        sendMessage("value : 80 -...- 160, 250 and 400")
+        sendMessage("valid colors : Coeur(co);Carreau(ca);Pique(P);Trefle(T);TA;SA")}
+      case "pl" => {sendMessage("During playing phase : pl <value> <color>")
+        sendMessage("valid values : Sept(7) -...- Dix(10) - V/D/R/AS - J/Q/K/AS - Valet/Dame/Roi/As")
+        sendMessage("example : pl 8 Co  || pl as T")}
+      case _ => sendMessage(cmd+" non trouvée.")
+    }
   }
 
   def printErreurCouleur() {
