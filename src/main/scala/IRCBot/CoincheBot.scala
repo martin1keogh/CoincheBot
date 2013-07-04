@@ -183,6 +183,9 @@ object CoincheBot extends App {
 
   val bot = new CoincheBot("#coinchebot")
 
+  // automatically play for you, if you don't have a choice
+  val automaticPlayIfNoChoice = true
+
   //debug
   bot.setVerbose(true)
 

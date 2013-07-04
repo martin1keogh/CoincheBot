@@ -3,6 +3,7 @@ package IRCBot
 import UI.Printer
 import GameLogic.{Partie, Card, Joueur, Enchere}
 import scala.collection.immutable.SortedMap
+import org.jibble.pircbot.Colors
 
 class IrcPrinter(val chan:String) extends Printer{
 
@@ -120,7 +121,7 @@ class IrcPrinter(val chan:String) extends Printer{
   }
 
   def tourJoueurEnchere(joueur: Joueur) {
-    if (Enchere.current.isDefined) sendMessage(Enchere.current.get.toString())
+    if (Enchere.current.isDefined) sendMessage(Colors.BOLD + Enchere.current.get.toString())
     sendMessage("A "+joueur.nom+" de parler.")
   }
 
@@ -129,7 +130,7 @@ class IrcPrinter(val chan:String) extends Printer{
   }
 
   def joueurAJoue(c: Card) {
-    sendMessage(Partie.currentPlayer+" joue "+c)
+    sendMessage(Colors.BOLD + Partie.currentPlayer+" joue "+c)
   }
 
   def remporte(joueur: Joueur, plis: List[(Joueur, Card)]) {

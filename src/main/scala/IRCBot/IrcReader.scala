@@ -45,6 +45,9 @@ class IrcReader extends Reader {
   // which card is it ?
   var (famille,valeur) = ("","")
   def getCard(jouables: List[Card], autres: List[Card]): Card = {
+    // if we have no choice, go ahead and play without asking
+    if (CoincheBot.automaticPlayIfNoChoice && jouables.length == 1) jouables(0)
+    else
     try {
       famille= ""
       valeur = ""
