@@ -17,7 +17,7 @@ class CoincheBot(val chan:String) extends PircBot{
   var listPlayers = List[String]()
 
   setName("CoincheBot")
-  setMessageDelay(100)
+  setMessageDelay(CoincheBot.throttle)
 
   def isOp(sender:String):Boolean = getUsers(chan).find(_.getNick == sender).get.isOp
 
@@ -33,8 +33,6 @@ class CoincheBot(val chan:String) extends PircBot{
   }
 
   def startGame() : Unit = {
-    // rename the players
-    Partie.listJoueur.zip(listPlayers).foreach({case (p:Joueur,name:String) => p.rename(name)})
 
     Partie.Printer = printer;Enchere.Printer = printer
     Partie.Reader = reader;Enchere.Reader = reader
@@ -43,7 +41,7 @@ class CoincheBot(val chan:String) extends PircBot{
     printer.printTeams()
 
     // start Partie on another thread
-    Future{Partie.start();listPlayers=List()}
+    Future{Partie.start();Partie.init()}
   }
 
   /**
@@ -56,19 +54,47 @@ class CoincheBot(val chan:String) extends PircBot{
     else {sendMessage(chan,sender+" : you are not op.")}
   }
 
+  def changeOneElement(list : List[String],pred : String => Boolean, newValue : String) : List[String] = list match{
+    case Nil => Nil
+    case x::xs => if (pred(x)) newValue :: xs else x::changeOneElement(xs,pred,newValue)
+  }
+
   def playerJoins(sender:String):Unit = {
-    if (listPlayers.length == 4) sendMessage(chan,"La table de coinche est deja pleine!")
+    if (listPlayers.length == 4 && listPlayers.find(_ == "None").isEmpty) sendMessage(chan,"La table de coinche est deja pleine!")
     else if (listPlayers.contains(sender)) sendMessage(chan,sender+" : Deja a la table.")
     else {
-      listPlayers = sender :: listPlayers
-      sendMessage(chan,sender+" rejoint la table.")
-      if (listPlayers.length == 4) startGame()
+      // Someone left the table, let's replace him/her
+      if (listPlayers.exists(_ == "None")) {
+        try {
+          listPlayers = changeOneElement(listPlayers,s => s == "None",sender)
+          Partie.listJoueur.find(j => j.nom == "None").get.rename(sender)
+          sendMessage(chan,sender+" rejoint la table.")
+        } catch {
+          case e:NoSuchElementException => println("Error in playerJoins :"+e);()
+        }
+      }
+      else {
+        listPlayers = sender :: listPlayers
+        Partie.listJoueur(listPlayers.length - 1).rename(sender)
+        sendMessage(chan,sender+" rejoint la table.")
+        if (listPlayers.length == 4 && Partie.state == stopped) startGame()
+      }
     }
   }
 
   def leave(sender:String):Unit = {
-    // can't leave if the game's already started
-    if (Partie.state == stopped) listPlayers = listPlayers diff List(sender)
+    try {
+    listPlayers = listPlayers.map(s => if (s == sender) "None" else s)
+    Partie.listJoueur.find(_.nom == sender).get.rename("None")
+    sendMessage(chan,sender+" left.")
+    } catch {
+      case e: NoSuchElementException => println(e)
+    }
+  }
+
+  def enoughPlayers():Boolean = {
+    if (listPlayers.length == 4 && listPlayers.find(_ == "None").isEmpty) true
+    else {sendMessage(chan,"Missing "+(4 - listPlayers.length + listPlayers.count(_ == "None"))+" player(s).");false}
   }
 
   override def onMessage(channel:String,
@@ -83,54 +109,63 @@ class CoincheBot(val chan:String) extends PircBot{
       case "!join" => playerJoins(sender)
       case "!quit" => quit(sender)
       case "!stop" => stopGame(sender)
+      case "!leave" => if (listPlayers.contains(sender)) leave(sender)
       case "!encheres" => if (Partie.State != stopped) printer.printListEnchere()
       case "!help" => if (message.trim() == "!help") printer.printHelp(channel)
-                      else {println(channel);printer.printHelp(channel,message.split(' ')(1))}
+                      else printer.printHelp(channel,message.split(' ')(1))
       case "!current" => printer.printCurrent()
-      case "!leave" => leave(sender)
       case "!cards" => if (listPlayers.contains(sender)) printer.printCartes(sender)
       case "!score" => printer.printScores()
       case "bid" => {
-        // We're in the bidding phase
-        if (Partie.state == bidding && sender == Partie.currentPlayer.nom) {
-          // "bid 80 Co".split(' ')
-          val array = message.split(' ')
-          if (Enchere.annonceLegal(array(1).toInt)) {
-            try {
-              // "Co"
-              reader.enchere.couleur = array(2)
-              // "80".toInt
-              reader.enchere.contrat = array(1).toInt
-              reader.enchere.modified = true}
-            catch {
-              case e : NumberFormatException => sendMessage(chan,"Format d'une annonce : 'bid <contrat> <couleur>")
-              case e : IndexOutOfBoundsException => sendMessage(chan,"Format d'une annonce : 'bid <contrat> <couleur>")
+        if (!enoughPlayers()) ()
+        else {
+          // We're in the bidding phase
+          if (Partie.state == bidding && sender == Partie.currentPlayer.nom) {
+            // "bid 80 Co".split(' ')
+            val array = message.split(' ')
+            if (Enchere.annonceLegal(array(1).toInt)) {
+              try {
+                // "Co"
+                reader.enchere.couleur = array(2)
+                // "80".toInt
+                reader.enchere.contrat = array(1).toInt
+                reader.enchere.modified = true}
+              catch {
+                case e : NumberFormatException => sendMessage(chan,"Format d'une annonce : 'bid <contrat> <couleur>")
+                case e : IndexOutOfBoundsException => sendMessage(chan,"Format d'une annonce : 'bid <contrat> <couleur>")
+              }
             }
-          }
-          else {
-          sendMessage(chan,sender+" : annonce illegale.")
+            else {
+              sendMessage(chan,sender+" : annonce illegale.")
+            }
           }
         }
       }
       case "passe" => {
-        if (Partie.state == bidding && sender == Partie.currentPlayer.nom) {
-          reader.enchere.couleur = "passe"
-          reader.enchere.modified = true
+        if (!enoughPlayers()) ()
+        else {
+          if (Partie.state == bidding && sender == Partie.currentPlayer.nom) {
+            reader.enchere.couleur = "passe"
+            reader.enchere.modified = true
+          }
         }
       }
       case "pl" => {
-        if (Partie.state == playing && sender == Partie.currentPlayer.nom) {
-          val array = message.split(' ')
-          if (array.length == 2) reader.valeur = array(1)
-          else try {
-            reader.famille = array(2)
-            reader.valeur = array(1)
-          } catch {
-            case e:IndexOutOfBoundsException => print(e);()
-            case e:Exception => println(e);()
+        if (!enoughPlayers()) ()
+        else {
+          if (Partie.state == playing && sender == Partie.currentPlayer.nom) {
+            val array = message.split(' ')
+            if (array.length == 2) reader.valeur = array(1)
+            else try {
+              reader.famille = array(2)
+              reader.valeur = array(1)
+            } catch {
+              case e:IndexOutOfBoundsException => print(e);()
+              case e:Exception => println(e);()
+            }
           }
+          else println(Partie.state+" : "+Partie.currentPlayer.nom)
         }
-        else println(Partie.state+" : "+Partie.currentPlayer.nom)
       }
       case "!coinche" => {
         if (Enchere.current.isDefined && Enchere.current.get.contrat > 80){
@@ -166,8 +201,7 @@ class CoincheBot(val chan:String) extends PircBot{
   }
 
   override def onNickChange(oldNick:String,login:String,hostname:String,newNick:String):Unit = {
-    println(oldNick+" to "+newNick)
-    listPlayers = listPlayers.map(s => if (s == oldNick) newNick else oldNick)
+    listPlayers = listPlayers.map(s => if (s == oldNick) newNick else s )
     Partie.listJoueur.foreach(j => if (j.nom == oldNick) j.rename(newNick))
   }
 
@@ -183,8 +217,11 @@ object CoincheBot extends App {
 
   val bot = new CoincheBot("#coinchebot")
 
+  // milliseconds
+  val throttle = 500
+
   // automatically play for you, if you don't have a choice
-  val automaticPlayIfNoChoice = true
+  val automaticPlay = true
 
   //debug
   bot.setVerbose(true)
