@@ -27,7 +27,7 @@ class IrcPrinter(val chan:String) extends Printer{
         printFamille(j,famille._2)
       })
     }
-    Partie.listJoueur.foreach(aux(_))
+    Partie.listJoueur.foreach(j => {aux(j);Thread.sleep(1000)})
 
   }
 
@@ -121,8 +121,11 @@ class IrcPrinter(val chan:String) extends Printer{
   }
 
   def tourJoueurEnchere(joueur: Joueur) {
-    if (Enchere.current.isDefined) sendMessage(Colors.BOLD + Enchere.current.get.toString())
     sendMessage("A "+joueur.nom+" de parler.")
+  }
+
+  def printEnchere() {
+    if (Enchere.current.isDefined) sendMessage(Colors.BOLD + Enchere.current.get.toString())
   }
 
   def tourJoueur(j: Joueur) {
@@ -163,8 +166,8 @@ class IrcPrinter(val chan:String) extends Printer{
   def pasDePrise() {sendMessage("Pas de prise")}
 
   def enchereFinie(e: Enchere) {
-    sendMessage("Fin des encheres")
-    sendMessage(e.toString())
+    sendMessage("Fin des encheres, distribution des cartes.")
+    sendMessage(Colors.BOLD + e.toString())
   }
 
   def printTeams() {
@@ -179,20 +182,28 @@ class IrcPrinter(val chan:String) extends Printer{
 
   def printScoreMain(scoreNS: Int, enchere: Enchere) {
     sendMessage("Contrat : "+enchere.toString())
-    val prisParNS = (enchere.id % 2 == 0)
-    if (prisParNS) {
-      if (scoreNS >= enchere.contrat) {sendMessage("Passe de "+(scoreNS - enchere.contrat))}
-      else {sendMessage("Chute de "+(enchere.contrat - scoreNS))}
+    if (enchere.contrat == 400) {
+      if (Partie.generalChute) sendMessage("Chute !")
+      else sendMessage("Passe !")
+    }
+    else if (enchere.contrat == 250) {
+      if (Partie.capotChute) sendMessage("Chute !")
+      else sendMessage("Passe !")
     } else {
-      val scoreEO = 162 - scoreNS
-      if (scoreEO >= enchere.contrat) {sendMessage("Passe de "+(scoreEO - enchere.contrat))}
-      else {sendMessage("Chute de "+(enchere.contrat - scoreEO))}
+      val prisParNS = (enchere.id % 2 == 0)
+      if (prisParNS) {
+        if (scoreNS >= enchere.contrat) {sendMessage("Passe de "+(scoreNS - enchere.contrat))}
+        else {sendMessage("Chute de "+(enchere.contrat - scoreNS))}
+      } else {
+        val scoreEO = 162 - scoreNS
+        if (scoreEO >= enchere.contrat) {sendMessage("Passe de "+(scoreEO - enchere.contrat))}
+        else {sendMessage("Chute de "+(enchere.contrat - scoreEO))}
+      }
     }
   }
 
   def printCardsToAll(couleurAtout: Int) {
     def aux(j:Joueur):Unit = {
-      sendMessage(j,"-----------------------")
       SortedMap(j.main.zipWithIndex.groupBy(_._1.famille).toSeq:_*).foreach(
       {case (cle,l) =>
         val sb = new StringBuilder
@@ -200,9 +211,8 @@ class IrcPrinter(val chan:String) extends Printer{
         l.foreach({case (card:Card,index:Int) => sb.append(card+"; ")});
         sendMessage(j,sb.toString())
       })
-      sendMessage(j,"-----------------------")
     }
-    Partie.listJoueur.foreach(aux(_))
+    Partie.listJoueur.foreach(j => {aux(j);Thread.sleep(1000)})
 
   }
 
