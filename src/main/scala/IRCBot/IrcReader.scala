@@ -45,8 +45,8 @@ class IrcReader extends Reader {
   // which card is it ?
   var (famille,valeur) = ("","")
   def getCard(jouables: List[Card], autres: List[Card]): Card = {
-    // if we have no choice, go ahead and play without asking
-    if (CoincheBot.automaticPlayIfNoChoice && jouables.length == 1) jouables(0)
+    // play the last card automatically
+    if (CoincheBot.automaticPlay && jouables.length == 1 && autres.length == 0) jouables(0)
     else
     try {
       famille= ""
@@ -58,6 +58,8 @@ class IrcReader extends Reader {
         if (cardOption.isDefined) cardOption.get
         else {
           CoincheBot.bot.sendMessage(CoincheBot.bot.chan,"Aucune carte de cette valeur jouable.")
+          println(jouables)
+          println(autres)
           getCard(jouables,autres)
         }
       }
