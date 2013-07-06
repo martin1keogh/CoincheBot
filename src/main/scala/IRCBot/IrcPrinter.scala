@@ -133,7 +133,16 @@ class IrcPrinter(val chan:String) extends Printer{
   }
 
   def joueurAJoue(c: Card) {
-    sendMessage(Colors.BOLD + Partie.currentPlayer+" joue "+c)
+    // the player has 'belote' and plays the king or the queen
+    if (Partie.belote.exists(j => j.id%2 == Partie.enchere.id%2 // the player with "belote"'s team won the bidding
+        && j.id == Partie.currentPlayer.id) // he is the current player
+        && (c.valeur == 4 || c.valeur == 5)) { // and he played the queen or king
+      if (Partie.currentPlayer.main.count(c => c == 4 || c == 5) == 2) // plays 'belote'
+        sendMessage(Colors.BOLD + Partie.currentPlayer+" joue "+c+" et annonce 'belote' !")
+      else // plays 'rebelote'
+        sendMessage(Colors.BOLD + Partie.currentPlayer+" joue "+c+" et annonce 'rebelote'!")
+    }
+    else sendMessage(Colors.BOLD + Partie.currentPlayer+" joue "+c)
   }
 
   def remporte(joueur: Joueur, plis: List[(Joueur, Card)]) {
