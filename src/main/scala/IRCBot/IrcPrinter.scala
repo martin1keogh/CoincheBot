@@ -7,7 +7,7 @@ import org.jibble.pircbot.Colors
 
 class IrcPrinter(val chan:String) extends Printer{
 
-  override def toString() = "irc"
+  override def toString = "irc"
 
   def sendMessage(s:String):Unit = CoincheBot.bot.sendMessage(chan,s)
   def sendMessage(j:Joueur,s:String):Unit = CoincheBot.bot.sendMessage(j.nom,s)
@@ -133,16 +133,7 @@ class IrcPrinter(val chan:String) extends Printer{
   }
 
   def joueurAJoue(c: Card) {
-    // the player has 'belote' and plays the king or the queen
-    if (Partie.belote.exists(j => j.id%2 == Partie.enchere.id%2 // the player with "belote"'s team won the bidding
-        && j.id == Partie.currentPlayer.id) // he is the current player
-        && (c.valeur == 4 || c.valeur == 5)) { // and he played the queen or king
-      if (Partie.currentPlayer.main.count(c => c == 4 || c == 5) == 2) // plays 'belote'
-        sendMessage(Colors.BOLD + Partie.currentPlayer+" joue "+c+" et annonce 'belote' !")
-      else // plays 'rebelote'
-        sendMessage(Colors.BOLD + Partie.currentPlayer+" joue "+c+" et annonce 'rebelote'!")
-    }
-    else sendMessage(Colors.BOLD + Partie.currentPlayer+" joue "+c)
+    sendMessage(Colors.BOLD + Partie.currentPlayer+" joue "+c)
   }
 
   def remporte(joueur: Joueur, plis: List[(Joueur, Card)]) {
@@ -167,8 +158,11 @@ class IrcPrinter(val chan:String) extends Printer{
   }
 
   def printFin(NS: Int, EO: Int) {
+    val NS = Partie.listJoueur.filter(_.id%2 == 0)
+    val EO = Partie.listJoueur.filter(_.id%2 == 1)
     sendMessage("Partie fini, score final :")
-    sendMessage("N/S :"+NS.toString+"; E/O :"+EO.toString)
+    sendMessage(NS(0).nom+"/"+NS(1).nom+" :"+NS.toString+";"
+      +EO(0).nom+"/"+EO(1).nom + ":"+EO.toString)
 
   }
 
@@ -225,7 +219,16 @@ class IrcPrinter(val chan:String) extends Printer{
 
   }
 
+  def annonceBelote = {
+
+  }
+
   def printCoinche() {
     sendMessage("Coinché !! 5 secondes pour surcoinché (commande : !sur)")
+  }
+
+  def annonceBelote(first: Boolean) {
+    if (first) sendMessage(Partie.currentPlayer.nom+" annonce belote.")
+    else sendMessage(Partie.currentPlayer.nom+ "annonce rebelote.")
   }
 }
