@@ -2,15 +2,13 @@ package IRCBot
 
 import org.jibble.pircbot._
 import com.typesafe.config._
-import GameLogic.{Enchere, Joueur, Partie}
-import scala.concurrent.{Await,Future}
-import scala.concurrent.duration.Duration
+import GameLogic.{Enchere, Partie}
+import scala.concurrent.Future
 
 class CoincheBot(val chan:String) extends PircBot{
 
   import scala.concurrent.ExecutionContext.Implicits.global
   import Partie.State._
-
 
   val printer = new IrcPrinter(chan)
   val reader = new IrcReader()
@@ -26,10 +24,17 @@ class CoincheBot(val chan:String) extends PircBot{
       Partie.stopGame()
       listPlayers = List[String]()
       sendMessage(chan,"Game was stopped")
-    } else if (Partie.state == stopped) sendMessage(chan,"Not game running atm")
+    } else if (Partie.state == stopped) sendMessage(chan,"No game running atm")
     else {
+      // unused right now, need to implement vote
       sendMessage(chan,"Only Op can stop games ATM (todo : have players vote to stop the game)")
     }
+  }
+
+  def stopGame() : Unit = {
+    Partie.stopGame()
+    listPlayers = List[String]()
+    sendMessage(chan,"No one left at the table, the game was stopped")
   }
 
   def startGame() : Unit = {
@@ -41,7 +46,7 @@ class CoincheBot(val chan:String) extends PircBot{
     printer.printTeams()
 
     // start Partie on another thread
-    Future{Partie.start();Partie.init()}
+    Future{Partie.start();stopGame()}
   }
 
   /**
@@ -60,7 +65,7 @@ class CoincheBot(val chan:String) extends PircBot{
   }
 
   def playerJoins(sender:String):Unit = {
-    if (listPlayers.length == 4 && listPlayers.find(_ == "None").isEmpty) sendMessage(chan,"La table de coinche est deja pleine!")
+    if (listPlayers.length == 4 && !listPlayers.exists(_ == "None")) sendMessage(chan,"La table de coinche est deja pleine!")
     else if (listPlayers.contains(sender)) sendMessage(chan,sender+" : Deja a la table.")
     else {
       // Someone left the table, let's replace him/her
@@ -84,16 +89,18 @@ class CoincheBot(val chan:String) extends PircBot{
 
   def leave(sender:String):Unit = {
     try {
-    listPlayers = listPlayers.map(s => if (s == sender) "None" else s)
-    Partie.listJoueur.find(_.nom == sender).get.rename("None")
-    sendMessage(chan,sender+" left.")
+      listPlayers = listPlayers.map(s => if (s == sender) "None" else s)
+      Partie.listJoueur.find(_.nom == sender).get.rename("None")
+      sendMessage(chan,sender+" left.")
+      // nobody left at the table
+      if (listPlayers.forall(_ == "None")) stopGame()
     } catch {
       case e: NoSuchElementException => println(e)
     }
   }
 
   def enoughPlayers():Boolean = {
-    if (listPlayers.length == 4 && listPlayers.find(_ == "None").isEmpty) true
+    if (listPlayers.length == 4 && !listPlayers.exists(_ == "None")) true
     else {sendMessage(chan,"Missing "+(4 - listPlayers.length + listPlayers.count(_ == "None"))+" player(s).");false}
   }
 
@@ -117,7 +124,7 @@ class CoincheBot(val chan:String) extends PircBot{
       case "!cards" => if (listPlayers.contains(sender)) printer.printCartes(sender)
       case "!score" => printer.printScores()
       case "bid" => {
-        if (!enoughPlayers()) ()
+        if (!enoughPlayers() || sender != Partie.currentPlayer.nom) ()
         else {
           // We're in the bidding phase
           if (Partie.state == bidding && sender == Partie.currentPlayer.nom) {
@@ -168,20 +175,20 @@ class CoincheBot(val chan:String) extends PircBot{
         }
       }
       case "!coinche" => {
-        if (Enchere.current.isDefined && Enchere.current.get.contrat > 80){
+        if (Enchere.current.exists(_.contrat> 80)){
           val idEnchere = Enchere.current.get.id
           val coincheur = Partie.listJoueur.find(_.nom == sender)
-          if (coincheur.isDefined && (coincheur.get.id % 2) != (idEnchere % 2))
+          if (coincheur.exists(_.id % 2 != idEnchere % 2))
           {
             reader.coinche = true
           }
         }
       }
       case "!sur" => {
-        if (Enchere.current.isDefined && Enchere.current.get.coinche == 2){
+        if (Enchere.current.exists(_.coinche == 2)){
           val idEnchere = Enchere.current.get.id
           val coincheur = Partie.listJoueur.find(_.nom == sender)
-          if (coincheur.isDefined && (coincheur.get.id % 2) == (idEnchere % 2))
+          if (coincheur.exists(_.id % 2 == idEnchere % 2))
           {
             Enchere.current.get.coinche = 4
           }
@@ -194,7 +201,7 @@ class CoincheBot(val chan:String) extends PircBot{
   override def onPrivateMessage(sender:String, login:String, hostname:String, msg:String):Unit = {
 
     // command not allowed in queries
-    val notOnQuery = List[String]("!join","!quit","!stop","!leave")
+    val notOnQuery = List[String]("!join","!quit","!stop","!leave","!current","!encheres","!coinche")
     val cmd = msg.split(' ')(0)
 
     if (!notOnQuery.contains(cmd)) onMessage(sender,sender,login,hostname,msg)
