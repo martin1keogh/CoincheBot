@@ -1,7 +1,7 @@
 package IRCBot
 
 import UI.Reader
-import GameLogic.{Enchere, Card}
+import GameLogic.{Partie, Enchere, Card}
 
 class IrcReader extends Reader {
 
@@ -22,6 +22,7 @@ class IrcReader extends Reader {
     coinche = false
     while (!enchere.modified) {
       Thread.sleep(100)
+      if (Partie.checkStop()) throw new Partie.Stopped
       if (coinche) {Enchere.current.get.coinche = 2;return 0}
     }
     enchere.couleur.toUpperCase match {
@@ -51,17 +52,17 @@ class IrcReader extends Reader {
     try {
       famille= ""
       valeur = ""
-      while (valeur.isEmpty) {Thread.sleep(100)}
+      while (valeur.isEmpty) {
+        Thread.sleep(100)
+        if (Partie.checkStop()) throw new Partie.Stopped
+      }
       // if player only supplied a card value, we check if a (playable) color corresponds
       if (famille.isEmpty) {
         val cardOption = jouables.find(_.valeur == Card.stringToValeur(valeur))
-        if (cardOption.isDefined) cardOption.get
-        else {
+        cardOption.getOrElse({
           CoincheBot.bot.sendMessage(CoincheBot.bot.chan,"Aucune carte de cette valeur jouable.")
-          println(jouables)
-          println(autres)
           getCard(jouables,autres)
-        }
+        })
       }
       // if one of the info is wrong, ask again
       else if (Card.stringToFamille(famille) == -1 || Card.stringToValeur(valeur) == -1) getCard(jouables,autres)
@@ -69,11 +70,10 @@ class IrcReader extends Reader {
       else {
         val card = new Card(Card.stringToFamille(famille)*8 + Card.stringToValeur(valeur))
         val cardOption = jouables.find(_.equals(card))
-        if (cardOption.isDefined) cardOption.get
-        else {
+        cardOption.getOrElse({
           CoincheBot.bot.sendAction(CoincheBot.bot.chan,"Cette carte n'est pas jouable.");
           getCard(jouables,autres)
-        }
+        })
       }
     }
     catch {
