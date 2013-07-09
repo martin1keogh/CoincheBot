@@ -34,13 +34,14 @@ class IrcPrinter(val chan:String) extends Printer{
   def printCurrent():Unit = {
     if (CoincheBot.bot.listPlayers.isEmpty) sendMessage("Aucun joueur a la table.")
     else {
-      sendMessage("Joueur deja a la table : ")
-      CoincheBot.bot.listPlayers.foreach({ e => sendMessage(e.toString)})
+      val sb = new StringBuilder
+      CoincheBot.bot.listPlayers.foreach({ e => sb.append(e.toString+";")})
+      sendMessage("Joueur deja a la table : "+sb.toString())
     }
   }
 
   def printHelp(chan:String) : Unit = {
-    CoincheBot.bot.sendMessage(chan,"Command list : !quit, !stop, !join, !current, !encheres, !cards, !leave, !score")
+    CoincheBot.bot.sendMessage(chan,"Command list : !quit, !stop, !join, !current, !encheres, !cards, !leave, !score, !votekick")
     CoincheBot.bot.sendMessage(chan,"While playing : bid, pl, !coinche")
     CoincheBot.bot.sendMessage(chan,"!help <cmd> for more information on <cmd>")
   }
@@ -57,6 +58,7 @@ class IrcPrinter(val chan:String) extends Printer{
       case "!cards" => sendMessage("!cards : shows the player his cards (query)")
       case "!coinche" => sendMessage("!coinche : coinche the current bid (!sur to surcoinche)")
       case "!score" => sendMessage("!score : print score")
+      case "!votekick" => sendMessage("!votekick <nick> : starts a vote among players to kick <nick>. Only works when playing a game!")
       case "bid" => {
         sendMessage("During bidding phase : bid <value> <color> || passe")
         sendMessage("example : bid 80 Co (or bid 80 coeur)")
