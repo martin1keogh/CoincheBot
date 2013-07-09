@@ -18,6 +18,58 @@ class CoincheBot(val chan:String) extends PircBot{
   setName("CoincheBot")
   setMessageDelay(CoincheBot.throttle)
 
+  /**
+   * Simple Spam control system
+   * Maps mask -> number of cmd sent to the bot
+   * Every 'interval' seconds, those number are decremented
+   * If a mask exceeds 'limit', he is kicked or banned (if he was kicked once before)
+   */
+  object Spam {
+    // For each mask, maps his hostMask and nick to the number of command sent
+    // Used to kick/ban spammers
+    var spamMap:Map[(String,String),Int] = Map[(String,String),Int]()
+    var kickedOnceMap:Map[String,Boolean] = Map[String,Boolean]()
+
+    // decrement values every ? milliseconds
+    val interval = 1000
+    val limit = 4
+
+    def createMask(nick:String,host:String):String = nick
+
+    def setBan(mask:String):Unit = kickedOnceMap = kickedOnceMap + (mask -> true)
+
+    /**
+     * Decrement every mask's value.
+     * decrement should be called every X seconds
+     */
+    def decrement():Unit = spamMap = spamMap.mapValues(value => if (value > 0) value-1 else 0)
+
+    def increment(mask:String,nick:String):Unit = {
+      spamMap = spamMap + ((mask,nick) -> (spamMap.getOrElse((mask,nick),0) + 2))
+    }
+
+    def run() : Unit = {
+      while (true) {
+        Thread.sleep(interval)
+        val toKickOrBan = spamMap.filter({case (_,count:Int) => count > limit})
+        toKickOrBan.foreach(
+        {case ((mask:String,nick:String),_) =>
+          if (kickedOnceMap.getOrElse(mask,false)) {
+            ban(chan,"*!"+mask)
+            if (listPlayers.contains(nick)) leave(nick)
+          }
+          else {kick(chan,nick,"Command spam detected, you'll be banned next time.")
+            setBan(mask)
+            spamMap = spamMap + ((mask,nick) -> 0)
+            if (listPlayers.contains(nick)) leave(nick)
+          }
+        })
+        decrement()
+      }
+    }
+
+  }
+
   def isOp(sender:String):Boolean = getUsers(chan).find(_.getNick == sender).get.isOp
 
   def stopGame(sender:String) : Unit = {
@@ -246,17 +298,20 @@ class CoincheBot(val chan:String) extends PircBot{
           }
         }
       }
-      case _ => ()
+      case _ => isCmd = false
     }
+    if (isCmd) Spam.increment(login+"@"+hostname,sender)
   }
 
   override def onPrivateMessage(sender:String, login:String, hostname:String, msg:String):Unit = {
 
     // command not allowed in queries
-    val notOnQuery = List[String]("!join","!quit","!stop","!leave","!current","!encheres","!coinche")
+    val notOnQuery = List[String]("!join","!quit","!stop","!leave","!coinche","!votekick")
     val cmd = msg.split(' ')(0)
 
-    if (!notOnQuery.contains(cmd)) onMessage(sender,sender,login,hostname,msg)
+    // if command is allowed and mask was never kick from main channel
+    if (!notOnQuery.contains(cmd) && !Spam.kickedOnceMap.getOrElse(login+"@"+hostname,false)) onMessage(sender,sender,login,hostname,msg)
+    else Spam.increment(login+"@"+hostname,sender)
   }
 
   override def onNickChange(oldNick:String,login:String,hostname:String,newNick:String):Unit = {
