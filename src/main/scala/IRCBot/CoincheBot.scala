@@ -100,7 +100,7 @@ class CoincheBot(val chan:String) extends PircBot{
       var loopCounter = 0
       while (loopCounter < 30) {
         Thread.sleep(2000)
-        if (kickCounter.length > 2) {kick(chan,nick);loopCounter = 30} else loopCounter+=1
+        if (kickCounter.length > 2) {kick(chan,nick);leave(nick);loopCounter = 30} else loopCounter+=1
       }
     }
   }
@@ -233,24 +233,24 @@ class CoincheBot(val chan:String) extends PircBot{
       case "bid" => {
         if (!enoughPlayers() || sender != Partie.currentPlayer.nom) ()
         else {
-          // We're in the bidding phase
-          if (Partie.state == bidding && sender == Partie.currentPlayer.nom) {
-            // "bid 80 Co".split(' ')
-            val array = message.split(' ')
-            if (Enchere.annonceLegal(array(1).toInt)) {
-              try {
+          try {
+            // We're in the bidding phase
+            if (Partie.state == bidding && sender == Partie.currentPlayer.nom) {
+              // "bid 80 Co".split(' ')
+              val array = message.split(' ')
+              if (Enchere.annonceLegal(array(1).toInt)) {
                 // "Co"
                 reader.enchere.couleur = array(2)
                 // "80".toInt
                 reader.enchere.contrat = array(1).toInt
                 reader.enchere.modified = true}
+              else {
+                sendMessage(chan,sender+" : annonce illegale.")
+              }
               catch {
                 case e : NumberFormatException => sendMessage(chan,"Format d'une annonce : 'bid <contrat> <couleur>")
                 case e : IndexOutOfBoundsException => sendMessage(chan,"Format d'une annonce : 'bid <contrat> <couleur>")
               }
-            }
-            else {
-              sendMessage(chan,sender+" : annonce illegale.")
             }
           }
         }
