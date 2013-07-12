@@ -163,8 +163,8 @@ class IrcPrinter(val chan:String) extends Printer{
     val NS = Partie.listJoueur.filter(_.id%2 == 0)
     val EO = Partie.listJoueur.filter(_.id%2 == 1)
     sendMessage("Partie fini, score final :")
-    sendMessage(NS(0).nom+"/"+NS(1).nom+" :"+NS.toString+";"
-      +EO(0).nom+"/"+EO(1).nom + ":"+EO.toString)
+    sendMessage(NS(0).nom+"/"+NS(1).nom+" :"+Partie.scoreTotalNS+";"
+      +EO(0).nom+"/"+EO(1).nom + ":"+Partie.scoreTotalEO)
 
   }
 
@@ -220,17 +220,12 @@ class IrcPrinter(val chan:String) extends Printer{
     Partie.listJoueur.foreach(j => {aux(j);Thread.sleep(1000)})
 
   }
-
-  def annonceBelote = {
-
-  }
-
   def printCoinche() {
     sendMessage("Coinché !! 5 secondes pour surcoinché (commande : !sur)")
   }
 
   def annonceBelote(first: Boolean) {
     if (first) sendMessage(Partie.currentPlayer.nom+" annonce belote.")
-    else sendMessage(Partie.currentPlayer.nom+ "annonce rebelote.")
+    else sendMessage(Partie.currentPlayer.nom+ " annonce rebelote.")
   }
 }
