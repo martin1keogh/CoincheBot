@@ -29,6 +29,11 @@ class CoincheBot(val chan:String) extends PircBot{
     // Used to kick/ban spammers
     var spamMap:Map[(String,String),Int] = Map[(String,String),Int]()
     var kickedOnceMap:Map[String,Boolean] = Map[String,Boolean]()
+    // lag/server throttle make it possible to spam A LOT before effectively being ban.
+    // Nicks are added to the ignoreList when the bot detects spam, and it ignores all
+    // following command.
+    // Nicks are removed when the person re-joins.
+    var ignoreList:List[String] = List[String]()
 
     // decrement values every ? milliseconds
     val interval = 1000
@@ -61,6 +66,7 @@ class CoincheBot(val chan:String) extends PircBot{
           else {kick(chan,nick,"Command spam detected, you'll be banned next time.")
             setBan(mask)
             spamMap = spamMap + ((mask,nick) -> 0)
+            ignoreList = nick :: ignoreList
             if (listPlayers.contains(nick)) leave(nick)
           }
         })
@@ -100,27 +106,25 @@ class CoincheBot(val chan:String) extends PircBot{
       var loopCounter = 0
       while (loopCounter < 30) {
         Thread.sleep(2000)
-        if (kickCounter.length > 2) {kick(chan,nick);leave(nick);loopCounter = 30} else loopCounter+=1
+        if (kickCounter.length > 2) {kick(chan,nick);loopCounter = 30} else loopCounter+=1
       }
     }
   }
-/*
-  def voteBan(caller:String,nick:String) : Unit = Future {
-    if (Partie.state == stopped) ()
-    else if (!getUsers(chan).contains(nick)) sendMessage(chan,"No such person on this channel.")
+
+  def voteBan(caller:String,nick:String,mask:String) : Unit = Future {
+    if (!getUsers(chan).contains(nick)) sendMessage(chan,"No such person on this channel.")
     else if (isOp(nick)) {kick(chan,caller,"Nice try.")}
     else {
-      kickCounter = Some(0)
+      kickCounter = List[String]()
       sendMessage(chan,"Vote to ban "+nick+" requested! Players have 1 minute to vote (cmd: !yes). 4 votes needed.")
       var loopCounter = 0
       while (loopCounter < 30) {
         Thread.sleep(2000)
-        if (kickCounter.get > 3) {sendMessage(chan,"/ban "+nick);loopCounter = 30} else loopCounter+=1
+        if (kickCounter.length > 3) {ban(chan,"*!"+mask);leave(nick);loopCounter = 30} else loopCounter+=1
       }
-      kickCounter = None
     }
   }
-  */
+
 
   def startGame() : Unit = {
 
@@ -131,7 +135,7 @@ class CoincheBot(val chan:String) extends PircBot{
     printer.printTeams()
 
     // start Partie on another thread
-    Future{Partie.start();stopGame()}
+    Future{Partie.start()}
   }
 
   /**
@@ -211,96 +215,101 @@ class CoincheBot(val chan:String) extends PircBot{
                          hostname:String,
                          message:String):Unit = {
 
-    val cmd = message.split(' ')(0)
-    // was the msg a bot command ?
-    // set to false in : cmd match {case _ => isCmd = false}
-    var isCmd = true
+    if (Spam.ignoreList.contains(sender)) ()
+    else {
 
-    cmd toLowerCase() match {
-      case "!join" => playerJoins(sender)
-      case "!quit" => quit(sender)
-      case "!stop" => stopGame(sender)
-      case "!leave" => if (listPlayers.contains(sender)) leave(sender)
-      case "!encheres" => if (Partie.State != stopped) printer.printListEnchere()
-      case "!help" => if (message.trim() == "!help") printer.printHelp(channel)
-                      else printer.printHelp(channel,message.split(' ')(1))
-      case "!current" => printer.printCurrent()
-      case "!cards" => if (listPlayers.contains(sender)) printer.printCartes(sender)
-      case "!score" => printer.printScores()
-      case "!votekick" => if (message.split(' ').length == 2 && listPlayers.contains(sender)) voteKick(sender,message.split(' ')(1))
-   //   case "!voteban" => if (message.split(' ').length == 2) voteBan(sender,message.split(' ')(1))
-      case "!yes" => if (listPlayers.contains(sender) && !kickCounter.contains(sender)) kickCounter=sender::kickCounter
-      case "bid" => {
-        if (!enoughPlayers() || sender != Partie.currentPlayer.nom) ()
-        else {
-          try {
-            // We're in the bidding phase
+      val cmd = message.split(' ')(0)
+      // was the msg a bot command ?
+      // set to false in : cmd match {case _ => isCmd = false}
+      var isCmd = true
+
+      cmd toLowerCase() match {
+        case "!join" => playerJoins(sender)
+        case "!quit" => quit(sender)
+        case "!stop" => stopGame(sender)
+        case "!leave" => if (listPlayers.contains(sender)) leave(sender)
+        case "!encheres" => if (Partie.State != stopped) printer.printListEnchere()
+        case "!help" => if (message.trim() == "!help") printer.printHelp(channel)
+        else printer.printHelp(channel,message.split(' ')(1))
+        case "!current" => printer.printCurrent()
+        case "!cards" => if (listPlayers.contains(sender)) printer.printCartes(sender)
+        case "!score" => printer.printScores()
+        case "!votekick" => if (message.split(' ').length == 2 && listPlayers.contains(sender)) voteKick(sender,message.split(' ')(1))
+        case "!voteban" => if (message.split(' ').length == 2 && listPlayers.contains(sender)) voteBan(sender,message.split(' ')(1),login+"@"+hostname)
+        case "!yes" => if (listPlayers.contains(sender) && !kickCounter.contains(sender)) kickCounter=sender::kickCounter
+        case "bid" => {
+          if (!enoughPlayers() || sender != Partie.currentPlayer.nom) ()
+          else {
+            try {
+              // We're in the bidding phase
+              if (Partie.state == bidding && sender == Partie.currentPlayer.nom) {
+                // "bid 80 Co".split(' ')
+                val array = message.split(' ')
+                if (Enchere.annonceLegal(array(1).toInt)) {
+                  // "Co"
+                  reader.enchere.couleur = array(2)
+                  // "80".toInt
+                  reader.enchere.contrat = array(1).toInt
+                  reader.enchere.modified = true
+                }
+                else {
+                  sendMessage(chan,sender+" : annonce illegale.")
+                }
+              }
+            }
+            catch {
+              case e : NumberFormatException => sendMessage(chan,"Format d'une annonce : 'bid <contrat> <couleur>")
+              case e : IndexOutOfBoundsException => sendMessage(chan,"Format d'une annonce : 'bid <contrat> <couleur>")
+            }
+          }
+        }
+        case "passe" => {
+          if (!enoughPlayers()) ()
+          else {
             if (Partie.state == bidding && sender == Partie.currentPlayer.nom) {
-              // "bid 80 Co".split(' ')
+              reader.enchere.couleur = "passe"
+              reader.enchere.modified = true
+            }
+          }
+        }
+        case "pl" => {
+          if (!enoughPlayers()) ()
+          else {
+            if (Partie.state == playing && sender == Partie.currentPlayer.nom) {
               val array = message.split(' ')
-              if (Enchere.annonceLegal(array(1).toInt)) {
-                // "Co"
-                reader.enchere.couleur = array(2)
-                // "80".toInt
-                reader.enchere.contrat = array(1).toInt
-                reader.enchere.modified = true}
-              else {
-                sendMessage(chan,sender+" : annonce illegale.")
+              if (array.length == 2) reader.valeur = array(1)
+              else if (array.length == 3) {
+                reader.famille = array(2)
+                reader.valeur = array(1)
               }
-              catch {
-                case e : NumberFormatException => sendMessage(chan,"Format d'une annonce : 'bid <contrat> <couleur>")
-                case e : IndexOutOfBoundsException => sendMessage(chan,"Format d'une annonce : 'bid <contrat> <couleur>")
-              }
+            }
+            else println(Partie.state+" : "+Partie.currentPlayer.nom)
+          }
+        }
+        case "!coinche" => {
+          if (Enchere.current.exists(_.contrat> 80)){
+            val idEnchere = Enchere.current.get.id
+            val coincheur = Partie.listJoueur.find(_.nom == sender)
+            if (coincheur.exists(_.id % 2 != idEnchere % 2))
+            {
+              reader.coinche = true
             }
           }
         }
-      }
-      case "passe" => {
-        if (!enoughPlayers()) ()
-        else {
-          if (Partie.state == bidding && sender == Partie.currentPlayer.nom) {
-            reader.enchere.couleur = "passe"
-            reader.enchere.modified = true
-          }
-        }
-      }
-      case "pl" => {
-        if (!enoughPlayers()) ()
-        else {
-          if (Partie.state == playing && sender == Partie.currentPlayer.nom) {
-            val array = message.split(' ')
-            if (array.length == 2) reader.valeur = array(1)
-            else if (array.length == 3) {
-              reader.famille = array(2)
-              reader.valeur = array(1)
+        case "!sur" => {
+          if (Enchere.current.exists(_.coinche == 2)){
+            val idEnchere = Enchere.current.get.id
+            val coincheur = Partie.listJoueur.find(_.nom == sender)
+            if (coincheur.exists(_.id % 2 == idEnchere % 2))
+            {
+              Enchere.current.get.coinche = 4
             }
           }
-          else println(Partie.state+" : "+Partie.currentPlayer.nom)
         }
+        case _ => isCmd = false
       }
-      case "!coinche" => {
-        if (Enchere.current.exists(_.contrat> 80)){
-          val idEnchere = Enchere.current.get.id
-          val coincheur = Partie.listJoueur.find(_.nom == sender)
-          if (coincheur.exists(_.id % 2 != idEnchere % 2))
-          {
-            reader.coinche = true
-          }
-        }
-      }
-      case "!sur" => {
-        if (Enchere.current.exists(_.coinche == 2)){
-          val idEnchere = Enchere.current.get.id
-          val coincheur = Partie.listJoueur.find(_.nom == sender)
-          if (coincheur.exists(_.id % 2 == idEnchere % 2))
-          {
-            Enchere.current.get.coinche = 4
-          }
-        }
-      }
-      case _ => isCmd = false
+      if (isCmd) Spam.increment(login+"@"+hostname,sender)
     }
-    if (isCmd) Spam.increment(login+"@"+hostname,sender)
   }
 
   override def onPrivateMessage(sender:String, login:String, hostname:String, msg:String):Unit = {
@@ -317,6 +326,18 @@ class CoincheBot(val chan:String) extends PircBot{
   override def onNickChange(oldNick:String,login:String,hostname:String,newNick:String):Unit = {
     listPlayers = listPlayers.map(s => if (s == oldNick) newNick else s )
     Partie.listJoueur.foreach(j => if (j.nom == oldNick) j.rename(newNick))
+  }
+
+  override def onPart(channel:String,sender:String,login:String,hostname:String):Unit = {
+    if (listPlayers.contains(sender)) leave(sender)
+  }
+
+  override def onKick(channel:String,kickerNick:String,kickerLogin:String,kickerHostName:String,kickedNick:String,reason:String) : Unit ={
+    if (listPlayers.contains(kickedNick)) leave(kickedNick)
+  }
+
+  override def onJoin(channel:String,sender:String,login:String,hostname:String):Unit = {
+    listPlayers = listPlayers.filterNot(_ == sender)
   }
 
   def start():Unit = {
