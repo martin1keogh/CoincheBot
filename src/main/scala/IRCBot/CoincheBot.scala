@@ -16,7 +16,6 @@ class CoincheBot(val chan:String) extends PircBot{
   var kickCounter:List[String] = List[String]()
 
   setName("CoincheBot")
-  setMessageDelay(CoincheBot.throttle)
 
   /**
    * Simple Spam control system
@@ -361,36 +360,34 @@ object CoincheBot extends App {
 
   val config = ConfigFactory.load()
 
-  val bot = new CoincheBot("#coinchebot")
+  // bot creation
+  val bot = new CoincheBot(config.getString("server.chan"))
+  // IllegalAccessError
+//  bot.setName(config.getString("config.nick"))
 
-  // milliseconds
-  val throttle = 1000
-
-  // automatically play for you, if you don't have a choice
-  val automaticPlay = true
-
-  //debug
-  bot.setVerbose(true)
-
+  bot.setVerbose(config.getBoolean("config.debug"))
+  bot.setMessageDelay(config.getInt("config.throttle"))
 
   try {
     // Connection
     val address = config.getString("server.address")
     val port = config.getInt("server.port")
     bot.connect(address,port)
+
     // identification
-    try {
-        bot.identify(config.getString("server.pass"))
-    } catch {
-      case e : ConfigException.Missing => println("No pass found for indentification.")
-    }
+    if (config.hasPath("config.pass")) bot.identify(config.getString("config.pass"))
+
     // AntiSpam
     Future{bot.Spam.run()}
+
+    bot.start()
   } catch {
     case e : Exception => { println("Error while trying to connect to the IRC server :")
-                            println(e.toString)
-                            sys.exit(255)}
+      println(e.toString)
+      sys.exit(255)}
   }
 
-  bot.start()
+  // automatically play for you, if you don't have a choice
+  val automaticPlay = config.getBoolean("config.automaticPlay")
+
 }
