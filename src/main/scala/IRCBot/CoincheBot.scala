@@ -47,30 +47,39 @@ class CoincheBot(val chan:String) extends PircBot{
      * Decrement every mask's value.
      * decrement should be called every X seconds
      */
-    def decrement():Unit = spamMap = spamMap.mapValues(value => if (value > 0) value-1 else 0)
+    def decrement():Unit = try {
+      spamMap = spamMap.mapValues(value => if (value > 0) value-1 else 0)
+    } catch {
+      case e:Exception => println(e)
+    }
 
-    def increment(mask:String,nick:String):Unit = {
+    def increment(mask:String,nick:String):Unit = try {
       spamMap = spamMap + ((mask,nick) -> (spamMap.getOrElse((mask,nick),0) + 2))
+    } catch {
+      case e:Exception => println(e)
     }
 
     def run() : Unit = {
-      while (true) {
-        Thread.sleep(interval)
-        val toKickOrBan = spamMap.filter({case (_,count:Int) => count > limit})
-        toKickOrBan.foreach(
-        {case ((mask:String,nick:String),_) =>
-          if (kickedOnceMap.getOrElse(mask,false)) {
-            ban(chan,"*!"+mask)
-            if (listPlayers.contains(nick)) leave(nick)
-          }
-          else {kick(chan,nick,"Command spam detected, you'll be banned next time.")
-            setBan(mask)
-            spamMap = spamMap + ((mask,nick) -> 0)
-            ignoreList = nick :: ignoreList
-            if (listPlayers.contains(nick)) leave(nick)
-          }
-        })
-        decrement()
+      try {
+        while (true) {
+          Thread.sleep(interval)
+          spamMap.filter({case (_,count) => count > limit}).foreach(
+          {case ((mask:String,nick:String),_) =>
+            if (kickedOnceMap.getOrElse(mask,false)) {
+              ban(chan,"*!"+mask)
+              if (listPlayers.contains(nick)) leave(nick)
+            }
+            else {kick(chan,nick,"Command spam detected, you'll be banned next time.")
+              setBan(mask)
+              spamMap = spamMap + ((mask,nick) -> 0)
+              ignoreList = nick :: ignoreList
+              if (listPlayers.contains(nick)) leave(nick)
+            }
+          })
+          decrement()
+        }
+      } catch {
+        case e : Exception => println(e)
       }
     }
 
@@ -98,7 +107,7 @@ class CoincheBot(val chan:String) extends PircBot{
 
   def voteKick(caller:String,nick:String) : Unit = Future {
     //if (Partie.state == stopped) () else
-    if (!getUsers(chan).exists(user => user.getNick.toLowerCase() == nick.toLowerCase())) sendMessage(chan,"No such person on this channel.")
+    if (!getUsers(chan).exists(user => user.getNick.toLowerCase == nick.toLowerCase)) sendMessage(chan,"No such person on this channel.")
     else if (isOp(nick)) {kick(chan,caller,"Nice try.")}
     else {
       kickCounter = List[String]()
@@ -135,7 +144,7 @@ class CoincheBot(val chan:String) extends PircBot{
     printer.printTeams()
 
     // start Partie on another thread
-    Future{Partie.start()}
+    Future{Partie.start();listPlayers = List[String]()}
   }
 
   /**
@@ -156,7 +165,7 @@ class CoincheBot(val chan:String) extends PircBot{
   /**
    * Add the person to 'listPlayers' if :
    *  - he isn't in it already
-   *  - the table isn't full (listPlayers.length < 4 || listPlayers.exists(player == "None")
+   *  - the table isn't full (listPlayers.length < 4 || listPlayers.exists(player == "None"))
    * @param sender Person who wants to join the game
    */
   def playerJoins(sender:String):Unit = {
@@ -172,6 +181,8 @@ class CoincheBot(val chan:String) extends PircBot{
         } catch {
           case e:NoSuchElementException => println("Error in playerJoins :"+e);()
         }
+        // if table is full again
+        if (listPlayers.length == 4) printer.printRestart()
       }
       else {
         listPlayers = sender :: listPlayers
@@ -230,7 +241,7 @@ class CoincheBot(val chan:String) extends PircBot{
         case "!leave" => if (listPlayers.contains(sender)) leave(sender)
         case "!encheres" => if (Partie.State != stopped) printer.printListEnchere()
         case "!help" => if (message.trim() == "!help") printer.printHelp(channel)
-        else printer.printHelp(channel,message.split(' ')(1))
+                        else printer.printHelp(channel,message.split(' ')(1))
         case "!current" => printer.printCurrent()
         case "!cards" => if (listPlayers.contains(sender)) printer.printCartes(sender)
         case "!score" => printer.printScores()
@@ -238,7 +249,7 @@ class CoincheBot(val chan:String) extends PircBot{
         case "!voteban" => if (message.split(' ').length == 2 && listPlayers.contains(sender)) voteBan(sender,message.split(' ')(1),login+"@"+hostname)
         case "!yes" => if (listPlayers.contains(sender) && !kickCounter.contains(sender)) kickCounter=sender::kickCounter
         case "bid" => {
-          if (!enoughPlayers() || sender != Partie.currentPlayer.nom) ()
+          if (!enoughPlayers()) ()
           else {
             try {
               // We're in the bidding phase
@@ -263,7 +274,7 @@ class CoincheBot(val chan:String) extends PircBot{
             }
           }
         }
-        case "passe" => {
+        case "passe" if (message.trim == "passe")=> { // "do nothing if msg = 'passe de 20; ...'
           if (!enoughPlayers()) ()
           else {
             if (Partie.state == bidding && sender == Partie.currentPlayer.nom) {
@@ -287,7 +298,7 @@ class CoincheBot(val chan:String) extends PircBot{
           }
         }
         case "!coinche" => {
-          if (Enchere.current.exists(_.contrat> 80)){
+          if (Enchere.current.exists(_.contrat> 80) && enoughPlayers()){
             val idEnchere = Enchere.current.get.id
             val coincheur = Partie.listJoueur.find(_.nom == sender)
             if (coincheur.exists(_.id % 2 != idEnchere % 2))
@@ -297,7 +308,7 @@ class CoincheBot(val chan:String) extends PircBot{
           }
         }
         case "!sur" => {
-          if (Enchere.current.exists(_.coinche == 2)){
+          if (Enchere.current.exists(_.coinche == 2) && enoughPlayers()){
             val idEnchere = Enchere.current.get.id
             val coincheur = Partie.listJoueur.find(_.nom == sender)
             if (coincheur.exists(_.id % 2 == idEnchere % 2))
@@ -315,7 +326,7 @@ class CoincheBot(val chan:String) extends PircBot{
   override def onPrivateMessage(sender:String, login:String, hostname:String, msg:String):Unit = {
 
     // command not allowed in queries
-    val notOnQuery = List[String]("!join","!quit","!stop","!leave","!coinche","!votekick")
+    val notOnQuery = List[String]("!join","!quit","!stop","!leave","!coinche","!votekick","!voteban")
     val cmd = msg.split(' ')(0)
 
     // if command is allowed and mask was never kick from main channel
@@ -337,7 +348,7 @@ class CoincheBot(val chan:String) extends PircBot{
   }
 
   override def onJoin(channel:String,sender:String,login:String,hostname:String):Unit = {
-    listPlayers = listPlayers.filterNot(_ == sender)
+    Spam.ignoreList = Spam.ignoreList diff List(sender)
   }
 
   def start():Unit = {
@@ -361,6 +372,7 @@ object CoincheBot extends App {
   //debug
   bot.setVerbose(true)
 
+
   try {
     // Connection
     val address = config.getString("server.address")
@@ -375,12 +387,10 @@ object CoincheBot extends App {
     // AntiSpam
     Future{bot.Spam.run()}
   } catch {
-    case e : Exception => { println("Error while trying to connect to the IRC server :");
-                            println(e.toString);
+    case e : Exception => { println("Error while trying to connect to the IRC server :")
+                            println(e.toString)
                             sys.exit(255)}
   }
 
   bot.start()
-
-
 }

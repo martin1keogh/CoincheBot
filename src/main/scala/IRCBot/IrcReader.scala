@@ -71,7 +71,7 @@ class IrcReader extends Reader {
         val card = new Card(Card.stringToFamille(famille)*8 + Card.stringToValeur(valeur))
         val cardOption = jouables.find(_.equals(card))
         cardOption.getOrElse({
-          CoincheBot.bot.sendAction(CoincheBot.bot.chan,"Cette carte n'est pas jouable.");
+          CoincheBot.bot.sendAction(CoincheBot.bot.chan,"Cette carte n'est pas jouable.")
           getCard(jouables,autres)
         })
       }
