@@ -14,6 +14,7 @@ class CoincheBot(val chan:String) extends PircBot{
   val reader = new IrcReader()
   var listPlayers = List[String]()
   var kickCounter:List[String] = List[String]()
+  var voteInProgress:Boolean = false
 
   setName("CoincheBot")
 
@@ -98,30 +99,37 @@ class CoincheBot(val chan:String) extends PircBot{
   }
 
   def voteKick(caller:String,nick:String) : Unit = Future {
-    //if (Partie.state == stopped) () else
-    if (!getUsers(chan).exists(user => user.getNick.toLowerCase == nick.toLowerCase)) sendMessage(chan,"No such person on this channel.")
-    else if (isOp(nick)) {kick(chan,caller,"Nice try.")}
-    else {
-      kickCounter = List[String]()
-      sendMessage(chan,"Vote to kick "+nick+" requested! Players have 1 minute to vote (cmd: !yes). 3 votes needed.")
-      var loopCounter = 0
-      while (loopCounter < 30) {
-        Thread.sleep(2000)
-        if (kickCounter.length > 2) {kick(chan,nick);loopCounter = 30} else loopCounter+=1
+    if (!voteInProgress) {
+      if (!getUsers(chan).exists(user => user.getNick.toLowerCase == nick.toLowerCase)) sendMessage(chan,"No such person on this channel.")
+      else if (isOp(nick)) {kick(chan,caller,"Nice try.")}
+      else {
+        kickCounter = List[String]()
+        voteInProgress = true
+        sendMessage(chan,"Vote to kick "+nick+" requested! Players have 1 minute to vote (cmd: !yes). 3 votes needed.")
+        var loopCounter = 0
+        while (loopCounter < 30) {
+          Thread.sleep(2000)
+          if (kickCounter.length > 2) {kick(chan,nick);loopCounter = 30} else loopCounter+=1
+        }
+        voteInProgress = false
       }
     }
   }
 
   def voteBan(caller:String,nick:String,mask:String) : Unit = Future {
-    if (!getUsers(chan).contains(nick)) sendMessage(chan,"No such person on this channel.")
-    else if (isOp(nick)) {kick(chan,caller,"Nice try.")}
-    else {
-      kickCounter = List[String]()
-      sendMessage(chan,"Vote to ban "+nick+" requested! Players have 1 minute to vote (cmd: !yes). 4 votes needed.")
-      var loopCounter = 0
-      while (loopCounter < 30) {
-        Thread.sleep(2000)
-        if (kickCounter.length > 3) {ban(chan,"*!"+mask);leave(nick);loopCounter = 30} else loopCounter+=1
+    if (!voteInProgress) {
+      if (!getUsers(chan).contains(nick)) sendMessage(chan,"No such person on this channel.")
+      else if (isOp(nick)) {kick(chan,caller,"Nice try.")}
+      else {
+        kickCounter = List[String]()
+        voteInProgress = true
+        sendMessage(chan,"Vote to ban "+nick+" requested! Players have 1 minute to vote (cmd: !yes). 4 votes needed.")
+        var loopCounter = 0
+        while (loopCounter < 30) {
+          Thread.sleep(2000)
+          if (kickCounter.length > 3) {ban(chan,"*!"+mask);leave(nick);loopCounter = 30} else loopCounter+=1
+        }
+        voteInProgress = false
       }
     }
   }
