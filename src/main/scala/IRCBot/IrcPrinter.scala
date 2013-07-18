@@ -2,10 +2,10 @@ package IRCBot
 
 import UI.Printer
 import GameLogic.{Partie, Card, Joueur, Enchere}
-import scala.collection.immutable.SortedMap
 import org.jibble.pircbot.Colors
+import scala.language.implicitConversions
 
-class IrcPrinter(val chan:String) extends Printer{
+abstract class IrcPrinter(val chan:String) extends Printer{
 
   val spade = "♠"
   val diamond = "♦"
@@ -35,30 +35,31 @@ class IrcPrinter(val chan:String) extends Printer{
     case 3 => colorHeart + valeurToString(c) + heart
   }
 
-  def sendMessage(s:String):Unit = CoincheBot.bot.sendMessage(chan,s)
-  def sendMessage(j:Joueur,s:String):Unit = CoincheBot.bot.sendMessage(j.nom,s)
+  def sendMessage(s:String):Unit
+  def sendMessage(j:Joueur,s:String):Unit
+  def sendMessage(chan:String,s:String):Unit
 
   /**
    * Print current players
    */
-  def printCurrent():Unit = {
-    if (CoincheBot.bot.listPlayers.isEmpty) sendMessage("Aucun joueur a la table.")
+  def printCurrent(listPlayers:List[String]):Unit = {
+    if (listPlayers.isEmpty) sendMessage("Aucun joueur a la table.")
     else {
       val sb = new StringBuilder
-      CoincheBot.bot.listPlayers.foreach({ e => sb.append(e.toString+";")})
+      listPlayers.foreach({ e => sb.append(e.toString+";")})
       sendMessage("Joueur deja a la table : "+sb.toString())
     }
   }
 
   def printHelp(chan:String) : Unit = {
-    CoincheBot.bot.sendMessage(chan,"Command list : !quit, !stop, !join, !current, !encheres," +
+    sendMessage(chan,"Command list : !quit, !stop, !join, !current, !encheres," +
       " !cards, !leave, !score, !votekick, !voteban")
-    CoincheBot.bot.sendMessage(chan,"While playing : bid, pl, !coinche")
-    CoincheBot.bot.sendMessage(chan,"!help <cmd> for more information on <cmd>")
+    sendMessage(chan,"While playing : bid, pl, !coinche")
+    sendMessage(chan,"!help <cmd> for more information on <cmd>")
   }
 
   def printHelp(chan:String, cmd:String) : Unit = {
-    def sendMessage(s:String): Unit = CoincheBot.bot.sendMessage(chan,s)
+    def sendMessage(s:String): Unit = this.sendMessage(chan,s)
     cmd match{
       case "!quit" => sendMessage("!quit : Disconnects the bot (op only)")
       case "!stop" => sendMessage("!stop : stops the current game")
@@ -87,77 +88,51 @@ class IrcPrinter(val chan:String) extends Printer{
     }
   }
 
-  def printListEnchere() {
-    if (Enchere.listEnchere.isEmpty) { sendMessage("Aucune enchere pour le moment")}
+  def printListEnchere(listEnchere:List[Enchere]) {
+    if (listEnchere.isEmpty) { sendMessage("Aucune enchere pour le moment")}
     else {
       sendMessage("Liste des encheres precedentes :")
-      Enchere.listEnchere.reverse.foreach({enchere => sendMessage(enchere.toString())})
+      listEnchere.reverse.foreach({enchere => sendMessage(enchere.toString())})
     }
   }
 
-  def printScores() {
-    val (a::b::Nil,c::d::Nil) = Partie.listJoueur.partition(_.id%2 == 0)
-    sendMessage("score "+a+"/"+b+" :"+Partie.scoreTotalNS)
-    sendMessage("score "+c+"/"+d+" :"+Partie.scoreTotalEO)
+  def printScores(NS:Int,EO:Int)(implicit listJoueur:List[Joueur]) {
+    val (a::b::Nil,c::d::Nil) = listJoueur.partition(_.id%2 == 0)
+    sendMessage("score "+a+"/"+b+" :"+NS)
+    sendMessage("score "+c+"/"+d+" :"+EO)
   }
 
 
   // Unused in CoincheBot (sending every player all their cards
   // every turn spams the irc server)
-  def printCartes(jouables:List[Card],autres:List[Card]) {
-    def println(s:String) = sendMessage(Partie.currentPlayer,s)
-    println("Jouables : ")
-    //TRES SALE
-    SortedMap(jouables.zipWithIndex.groupBy(_._1.famille).toSeq:_*).foreach(
-    {case (cle,l) =>
-      val sb = new StringBuilder
-      if (l.head._1.famille == Partie.enchere.couleur) sb.append("(Atout) ") else sb.append("        ")
-      l.foreach({case (card:Card,index:Int) => sb.append(index+"/"+card+"; ")})
-      println(sb.toString())
-    })
-    if (!autres.isEmpty){
-      println("Non Jouables : ")
-      SortedMap(autres.groupBy(_.famille).toSeq:_*).foreach(
-      {case (cle,l) =>
-        val sb = new StringBuilder
-        if (l.head.famille == Partie.enchere.couleur) sb.append("(Atout) ") else sb.append("        ")
-        l.foreach({case card:Card => sb.append(card+"; ")})
-        println(sb.toString())
-      })
-    }
-    println("----------------------------------")
-  }
+  def printCards(jouables:List[Card],autres:List[Card])(implicit joueur:Joueur) {}
 
-  def tourJoueurEnchere(joueur: Joueur) {
+  def tourJoueurEnchere(implicit joueur: Joueur) {
     sendMessage("A "+joueur.nom+" de parler.")
   }
 
-  def printEnchere() {
-    if (Enchere.current.isDefined) sendMessage(Colors.BOLD + Enchere.current.get.toString())
-  }
-
-  def tourJoueur(j: Joueur) {
+  def tourJoueur(implicit j: Joueur) {
     sendMessage("A "+j.nom+" de jouer.")
   }
 
-  def joueurAJoue(c: Card) {
-    sendMessage(Colors.BOLD + Partie.currentPlayer+" joue "+cardToString(c))
+  def joueurAJoue(c: Card)(implicit joueur:Joueur) {
+    sendMessage(Colors.BOLD + joueur +" joue "+cardToString(c))
   }
 
   def remporte(joueur: Joueur, plis: List[(Joueur, Card)]) {
     sendMessage(Colors.BOLD+">>>> "+joueur.nom+" remporte le pli <<<<")
   }
 
-  def printFin(NS: Int, EO: Int) {
-    val NS = Partie.listJoueur.filter(_.id%2 == 0)
-    val EO = Partie.listJoueur.filter(_.id%2 == 1)
+  def printFin(NS: Int, EO: Int)(implicit listJoueur:List[Joueur]) {
+    val NS = listJoueur.filter(_.id%2 == 0)
+    val EO = listJoueur.filter(_.id%2 == 1)
     sendMessage("Partie finie, score final :")
-    sendMessage(NS(0).nom+"/"+NS(1).nom+" :"+Partie.scoreTotalNS+";"
-      +EO(0).nom+"/"+EO(1).nom + ":"+Partie.scoreTotalEO)
+    sendMessage(NS(0).nom+"/"+NS(1).nom+" :"+NS+";"
+      +EO(0).nom+"/"+EO(1).nom + ":"+EO)
 
   }
 
-  def printRestart() : Unit = {
+  def printRestart(Partie:Partie) : Unit = {
     if (Partie.state == Partie.State.running) tourJoueur(Partie.currentPlayer)
     if (Partie.state == Partie.State.bidding) tourJoueurEnchere(Partie.currentPlayer)
   }
@@ -169,24 +144,22 @@ class IrcPrinter(val chan:String) extends Printer{
     sendMessage(Colors.BOLD + e.toString())
   }
 
-  def printTeams() {
+  def printTeams(listJoueur:List[Joueur]) {
     sendMessage("Equipes : ")
-    Partie.listJoueur.groupBy(_.Equipe).foreach({
+    listJoueur.groupBy(j => j.Equipe).foreach({
       case (e,j1::j2::Nil) => sendMessage(e.toString()+" : "+j1+" "+j2)
       case (e,_) => throw new IllegalArgumentException("wrong number of player in team :"+e)
     })
   }
 
-  def printCartes() {}
-
-  def printScoreMain(scoreNS: Int, enchere: Enchere) {
+  def printScoreMain(scoreNS: Int, enchere: Enchere, capotChute:Boolean, generaleChute:Boolean) {
     sendMessage("Contrat : "+enchere.toString())
     if (enchere.contrat == 400) {
-      if (Partie.generalChute) sendMessage("Chute !")
+      if (generaleChute) sendMessage("Chute !")
       else sendMessage("Passe !")
     }
     else if (enchere.contrat == 250) {
-      if (Partie.capotChute) sendMessage("Chute !")
+      if (capotChute) sendMessage("Chute !")
       else sendMessage("Passe !")
     } else {
       val prisParNS = enchere.id % 2 == 0
@@ -201,11 +174,21 @@ class IrcPrinter(val chan:String) extends Printer{
     }
   }
 
-  def printCartes(j:Joueur):Unit = {
+  def printCards(implicit j: Joueur):Unit = {
     val stringBuilder = new StringBuilder
     val sbList = j.main.groupBy(_.famille).mapValues(famille => {
       val sb = new StringBuilder
-      if (famille.head.famille == Partie.enchere.couleur) {
+      famille.map(cardToString(_)).addString(sb," ")
+    }).values.toList
+    sbList.addString(stringBuilder," - ")
+    sendMessage(j,stringBuilder.toString())
+  }
+
+  def printCards(couleurAtout:Int)(implicit j:Joueur):Unit = {
+    val stringBuilder = new StringBuilder
+    val sbList = j.main.groupBy(_.famille).mapValues(famille => {
+      val sb = new StringBuilder
+      if (famille.head.famille == couleurAtout) {
         sb.append("(Atout) ")
         (1,famille.map(cardToString(_)).addString(sb," "))
       } else (0,famille.map(cardToString(_)).addString(sb," "))
@@ -215,20 +198,15 @@ class IrcPrinter(val chan:String) extends Printer{
     sendMessage(j,stringBuilder.toString())
   }
 
-  def printCartes(s:String):Unit = {
-    printCartes(Partie.listJoueur.find(_.nom == s).get)
-  }
-
-
-  def printCardsToAll(couleurAtout: Int) {
-    Partie.listJoueur.foreach(j => printCartes(j))
+  def printCardsToAll(couleurAtout: Int)(implicit listJoueur:List[Joueur]) {
+    listJoueur.foreach(j => printCards(couleurAtout)(j))
   }
 
   /**
    * Print the player's cards during the bidding phase
    * Cards are sorted by OrdreToutAtout
    */
-  def printCardsToAll() {
+  def printCardsToAll(implicit listJoueur:List[Joueur]) {
     def aux(j:Joueur) = {
       val stringBuilder = new StringBuilder
       val sbList = j.main.groupBy(_.famille).map({case (id,famille) =>
@@ -238,16 +216,19 @@ class IrcPrinter(val chan:String) extends Printer{
       sbList.addString(stringBuilder,Colors.NORMAL+" - ")
       sendMessage(j,stringBuilder.toString())
     }
-    Partie.listJoueur.foreach(j => aux(j))
+    listJoueur.foreach(j => aux(j))
   }
 
 
   def printCoinche() {
-    sendMessage("Coinché !! 5 secondes pour surcoinché (commande : !sur)")
+    sendMessage("Coinché !! 5 secondes pour surcoincher (commande : !sur)")
   }
 
-  def annonceBelote(first: Boolean) {
-    if (first) sendMessage(Partie.currentPlayer.nom+" annonce belote.")
-    else sendMessage(Partie.currentPlayer.nom+ " annonce rebelote.")
+  def annonceBelote(first: Boolean)(implicit currentPlayer:Joueur) {
+    if (first) sendMessage(currentPlayer.nom+" annonce belote.")
+    else sendMessage(currentPlayer.nom+ " annonce rebelote.")
   }
+
+  // unused in CoincheBot
+  def printCards(jouables: List[Card], autres: List[Card])(implicit joueur: Joueur, couleurAtout: Int) {}
 }
