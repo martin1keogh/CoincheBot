@@ -53,7 +53,7 @@ abstract class IrcPrinter(val chan:String) extends Printer{
 
   def printHelp(chan:String) : Unit = {
     sendMessage(chan,"Command list : !quit, !stop, !join, !current, !encheres," +
-      " !cards, !leave, !score, !votekick, !voteban")
+      " !cards, !leave, !score, !votekick, !voteban, !create")
     sendMessage(chan,"While playing : bid, pl, !coinche")
     sendMessage(chan,"!help <cmd> for more information on <cmd>")
   }
@@ -62,6 +62,7 @@ abstract class IrcPrinter(val chan:String) extends Printer{
     def sendMessage(s:String): Unit = this.sendMessage(chan,s)
     cmd match{
       case "!quit" => sendMessage("!quit : Disconnects the bot (op only)")
+      case "!create" => sendMessage("!create #chan : Creates a new CoincheBot on channel #chan (op only)")
       case "!stop" => sendMessage("!stop : stops the current game")
       case "!join" => sendMessage("!join : join the current table (or starts one if the first to join)")
       case "!encheres" => sendMessage("!list : list current bids (if any)")
