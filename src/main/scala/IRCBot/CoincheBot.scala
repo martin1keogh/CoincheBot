@@ -127,7 +127,7 @@ class CoincheBot(val chan:String) extends PircBot{
 
   def voteBan(caller:String,nick:String,mask:String) : Unit = Future {
     if (!voteInProgress) {
-      if (!getUsers(chan).contains(nick)) sendMessage(chan,"No such person on this channel.")
+      if (!getUsers(chan).exists(user => user.getNick.toLowerCase == nick.toLowerCase)) sendMessage(chan,"No such person on this channel.")
       else if (isOp(nick)) {kick(chan,caller,"Nice try.")}
       else {
         kickCounter = List[String]()
@@ -298,16 +298,13 @@ class CoincheBot(val chan:String) extends PircBot{
       }
       case "pl" => {
         if (!enoughPlayers()) ()
-        else {
-          if (Partie.state == playing && sender == Partie.currentPlayer.nom) {
-            val array = message.split(' ')
-            if (array.length == 2) reader.valeur = array(1)
-            else if (array.length == 3) {
-              reader.famille = array(2)
-              reader.valeur = array(1)
-            }
+        else if (Partie.state == playing && sender == Partie.currentPlayer.nom) {
+          val array = message.split(' ')
+          if (array.length == 2) reader.valeur = array(1)
+          else if (array.length == 3) {
+            reader.famille = array(2)
+            reader.valeur = array(1)
           }
-          else println(Partie.state+" : "+Partie.currentPlayer.nom)
         }
       }
       case "!coinche" => reader.coinche = true
