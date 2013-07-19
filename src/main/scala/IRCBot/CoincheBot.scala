@@ -5,9 +5,9 @@ import com.typesafe.config._
 import GameLogic.{Joueur, Partie}
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.collection.concurrent.TrieMap
 
 class CoincheBot(val chan:String) extends PircBot{
-
 
   val printer = new IrcPrinter(chan) {
     def sendMessage(j:Joueur,s:String) = CoincheBot.this.sendMessage(j.nom,s)
@@ -35,7 +35,7 @@ class CoincheBot(val chan:String) extends PircBot{
   object Spam {
     // For each mask, maps his hostMask and nick to the number of command sent
     // Used to kick/ban spammers
-    var spamMap = Map[(String,String),Int]()
+    val spamMap:scala.collection.concurrent.Map[(String,String),Int] = TrieMap[(String,String),Int]()
     var kickedOnceList = List[String]()
 
     // decrement values every ? milliseconds
@@ -49,15 +49,16 @@ class CoincheBot(val chan:String) extends PircBot{
      * decrement should be called every X seconds
      */
     def decrement():Unit = try {
-      spamMap = spamMap.mapValues(value => if (value > 0) value-1 else 0)
+      spamMap.foreach({case (k,v) => if (v>0) spamMap.update(k,v-1)})
     } catch {
-      case e:Exception => println(e)
+      case e:Throwable => println(e)
     }
 
     def increment(mask:String,nick:String):Unit = try {
-      spamMap = spamMap + ((mask,nick) -> (spamMap.getOrElse((mask,nick),0) + 2))
+      val v = spamMap.getOrElse((mask,nick),0)
+      spamMap.update((mask,nick),v+2)
     } catch {
-      case e:Exception => println(e)
+      case e:Throwable => println(e)
     }
 
     def run() : Unit = {
@@ -65,22 +66,23 @@ class CoincheBot(val chan:String) extends PircBot{
         while (true) {
           Thread.sleep(interval)
           spamMap.filter({case (_,count) => count > limit}).keySet.foreach(
-          {case (mask:String,nick:String) =>
+          {case (mask:String,nick:String) =>{
             if (kickedOnceList.contains(mask)) {
               ban(chan,"*!"+mask)
               if (listPlayers.contains(nick)) leave(nick)
             }
             else {kick(chan,nick,"Command spam detected, you'll be banned next time.")
               setBan(mask)
-              spamMap = spamMap + ((mask,nick) -> 0)
+              spamMap.update((mask,nick),0)
               if (listPlayers.contains(nick)) leave(nick)
             }
+          }
           case _ => println("Unexpected value in CoincheBot.Spam.run()")
           })
           decrement()
         }
       } catch {
-        case e : Exception => println(e)
+        case e : Throwable => println(e)
       }
     }
   }
