@@ -30,8 +30,8 @@ class IrcReader(printer:IrcPrinter) extends Reader {
     while (!enchere.modified) {
       Thread.sleep(100)
       if (checkStop()) throw stopped
-      if (surcoinche) 8
-      if (coinche) 7
+      if (surcoinche) return 8
+      if (coinche) return 7
     }
     enchere.couleur.toUpperCase match {
       case "PIQUE" | "P" => 1

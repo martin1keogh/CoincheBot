@@ -2,7 +2,7 @@ package IRCBot
 
 import org.jibble.pircbot._
 import com.typesafe.config._
-import GameLogic.{Joueur, Partie}
+import GameLogic.{Enchere, Joueur, Partie}
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection.concurrent.TrieMap
@@ -92,6 +92,7 @@ class CoincheBot(val chan:String) extends PircBot{
   def stopGame(sender:String) : Unit = {
     if (isOp(sender) || listPlayers.contains(sender)){ // not sure about the second condition, probably going to make it a vote
       Partie.stopGame()
+      Partie.init()
       listPlayers = List[String]()
       sendMessage(chan,"Game was stopped")
     } else if (Partie.state == stopped) sendMessage(chan,"No game running atm")
@@ -307,8 +308,12 @@ class CoincheBot(val chan:String) extends PircBot{
           }
         }
       }
-      case "!coinche" => reader.coinche = true
-      case "!sur" => reader.surcoinche = true
+      case "!coinche" => try {
+        if (Partie.enchereController.current.get.id % 2 != Partie.listJoueur.find(_.nom == sender).get.id % 2) reader.coinche = true
+      } catch {case _:Throwable => ()}
+      case "!sur" => try {
+        if (Partie.enchereController.current.get.id % 2 == Partie.listJoueur.find(_.nom == sender).get.id % 2) reader.surcoinche = true
+      } catch {case _:Throwable => ()}
       case _ => isCmd = false
     }
     if (isCmd) Spam.increment(login+"@"+hostname,sender)
