@@ -124,12 +124,12 @@ abstract class IrcPrinter(val chan:String) extends Printer{
     sendMessage(Colors.BOLD+">>>> "+joueur.nom+" remporte le pli <<<<")
   }
 
-  def printFin(NS: Int, EO: Int)(implicit listJoueur:List[Joueur]) {
+  def printFin(scoreNS: Int, scoreEO: Int)(implicit listJoueur:List[Joueur]) {
     val NS = listJoueur.filter(_.id%2 == 0)
     val EO = listJoueur.filter(_.id%2 == 1)
     sendMessage("Partie finie, score final :")
-    sendMessage(NS(0).nom+"/"+NS(1).nom+" :"+NS+";"
-      +EO(0).nom+"/"+EO(1).nom + ":"+EO)
+    sendMessage(NS(0).nom+"/"+NS(1).nom+" :"+scoreNS+";"
+      +EO(0).nom+"/"+EO(1).nom + ":"+scoreEO)
 
   }
 
