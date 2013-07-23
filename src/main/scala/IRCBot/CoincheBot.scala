@@ -92,7 +92,7 @@ class CoincheBot(val chan:String) extends PircBot{
       if (!getUsers(chan).exists(user => user.getNick.toLowerCase == nick.toLowerCase)) sendMessage(chan,"No such person on this channel.")
       else if (isOp(nick)) {kick(chan,caller,"Nice try.")}
       else {
-        kickCounter = List[String]()
+        kickCounter = List[String](caller)
         voteInProgress = true
         sendMessage(chan,"Vote to kick "+nick+" requested! Players have 1 minute to vote (cmd: !yes). 3 votes needed.")
         var loopCounter = 0
@@ -110,7 +110,7 @@ class CoincheBot(val chan:String) extends PircBot{
       if (!getUsers(chan).exists(user => user.getNick.toLowerCase == nick.toLowerCase)) sendMessage(chan,"No such person on this channel.")
       else if (isOp(nick)) {kick(chan,caller,"Nice try.")}
       else {
-        kickCounter = List[String]()
+        kickCounter = List[String](caller)
         voteInProgress = true
         sendMessage(chan,"Vote to ban "+nick+" requested! Players have 1 minute to vote (cmd: !yes). 4 votes needed.")
         var loopCounter = 0
