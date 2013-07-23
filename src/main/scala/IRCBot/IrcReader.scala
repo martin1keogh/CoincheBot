@@ -11,12 +11,6 @@ class IrcReader(printer:IrcPrinter) extends Reader {
 
   class State(var modified:Boolean, var couleur:String, var contrat:Int)
 
-  // These must be set when creating Reader
-  // Have tp find another way, reader should not
-  // depend on Partie...
-  var checkStop:(() => Boolean) = () => false
-  var stopped:Exception = new Exception
-
   val enchere = new State(false,"",0)
   var coinche = false
   var surcoinche = false
@@ -29,7 +23,6 @@ class IrcReader(printer:IrcPrinter) extends Reader {
     surcoinche = false
     while (!enchere.modified) {
       Thread.sleep(100)
-      if (checkStop()) throw stopped
       if (surcoinche) return 8
       if (coinche) return 7
     }
@@ -62,7 +55,6 @@ class IrcReader(printer:IrcPrinter) extends Reader {
       valeur = ""
       while (valeur.isEmpty) {
         Thread.sleep(100)
-        if (checkStop()) throw stopped
       }
       // if player only supplied a card value, we check if a (playable) color corresponds
       if (famille.isEmpty) {

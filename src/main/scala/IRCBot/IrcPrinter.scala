@@ -53,7 +53,7 @@ abstract class IrcPrinter(val chan:String) extends Printer{
 
   def printHelp(chan:String) : Unit = {
     sendMessage(chan,"Command list : !quit, !stop, !join, !current, !encheres," +
-      " !cards, !leave, !score, !votekick, !voteban, !create")
+      " !cards, !leave, !scores, !votekick, !voteban, !create")
     sendMessage(chan,"While playing : bid, pl, !coinche")
     sendMessage(chan,"!help <cmd> for more information on <cmd>")
   }
@@ -65,12 +65,12 @@ abstract class IrcPrinter(val chan:String) extends Printer{
       case "!create" => sendMessage("!create #chan : Creates a new CoincheBot on channel #chan (op only)")
       case "!stop" => sendMessage("!stop : stops the current game")
       case "!join" => sendMessage("!join : join the current table (or starts one if the first to join)")
-      case "!encheres" => sendMessage("!list : list current bids (if any)")
+      case "!encheres" => sendMessage("!encheres : list current bids (if any)")
       case "!current" => sendMessage("!current : show players currently at the table")
       case "!leave" => sendMessage("!leave : leaves the table, if the game hasn't started yet.")
       case "!cards" => sendMessage("!cards : shows the player his cards (query)")
       case "!coinche" => sendMessage("!coinche : coinche the current bid (!sur to surcoinche)")
-      case "!score" => sendMessage("!score : print score")
+      case "!scores" => sendMessage("!score : print scores")
       case "!votekick" => sendMessage("!votekick <nick> : starts a vote among players to kick <nick>. Only works when playing a game!")
       case "!voteban" => sendMessage("!voteban <nick> : starts a vote among players to ban <nick>. Only works when playing a game!")
       case "bid" => {
