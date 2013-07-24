@@ -1,15 +1,13 @@
 package IRCBot
 
 import UI.Reader
-import GameLogic.{Partie, Enchere, Card}
+import GameLogic.Card
 
 class IrcReader(printer:IrcPrinter) extends Reader {
 
-  /*
-  Really need to use actors here
-   */
-
   class State(var modified:Boolean, var couleur:String, var contrat:Int)
+
+  var interrupt = false
 
   val enchere = new State(false,"",0)
   var coinche = false
@@ -22,6 +20,7 @@ class IrcReader(printer:IrcPrinter) extends Reader {
     coinche = false
     surcoinche = false
     while (!enchere.modified) {
+      if (interrupt) throw new InterruptedException
       Thread.sleep(100)
       if (surcoinche) return 8
       if (coinche) return 7
@@ -54,6 +53,7 @@ class IrcReader(printer:IrcPrinter) extends Reader {
       famille= ""
       valeur = ""
       while (valeur.isEmpty) {
+        if (interrupt) throw new InterruptedException
         Thread.sleep(100)
       }
       // if player only supplied a card value, we check if a (playable) color corresponds

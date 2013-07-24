@@ -9,18 +9,19 @@ import scala.collection.concurrent.TrieMap
 
 class CoincheBot(val chan:String) extends PircBot{
 
-  val printer = new IrcPrinter(chan) {
+  var printer = new IrcPrinter(chan) {
     def sendMessage(j:Joueur,s:String) = CoincheBot.this.sendMessage(j.nom,s)
     def sendMessage(s:String) = CoincheBot.this.sendMessage(chan,s)
     def sendMessage(chan:String,s:String) = CoincheBot.this.sendMessage(chan,s)
   }
-  val reader = new IrcReader(printer)
-  val Partie = new Partie(printer,reader)
-  val Enchere = Partie.enchereController
+  var reader = new IrcReader(printer)
+  var Partie = new Partie(printer,reader)
+  var Enchere = Partie.enchereController
 
   var listPlayers = List[String]()
   var kickCounter:List[String] = List[String]()
   var voteInProgress:Boolean = false
+
 
   setName("CoincheBot")
 
@@ -85,6 +86,17 @@ class CoincheBot(val chan:String) extends PircBot{
     }
   }
 
+  def setNewGame() : Unit = {
+    printer = new IrcPrinter(chan) {
+      def sendMessage(j:Joueur,s:String) = CoincheBot.this.sendMessage(j.nom,s)
+      def sendMessage(s:String) = CoincheBot.this.sendMessage(chan,s)
+      def sendMessage(chan:String,s:String) = CoincheBot.this.sendMessage(chan,s)
+    }
+    reader = new IrcReader(printer)
+    Partie = new Partie(printer,reader)
+    Enchere = Partie.enchereController
+  }
+
   def isOp(sender:String):Boolean = getUsers(chan).find(_.getNick == sender).get.isOp
 
   def voteKick(caller:String,nick:String) : Unit = Future {
@@ -126,7 +138,9 @@ class CoincheBot(val chan:String) extends PircBot{
   def stopGame(sender:String) : Unit = {
     if (isOp(sender) || listPlayers.contains(sender)){ // not sure about the second condition, probably going to make it a vote
       Partie.stopGame()
+      reader.interrupt = true
       listPlayers = List()
+      setNewGame()
       sendMessage(chan,"Game was stopped")
     } else if (Partie.state == Partie.State.stopped) sendMessage(chan,"No game running atm")
     else {
@@ -137,7 +151,9 @@ class CoincheBot(val chan:String) extends PircBot{
 
   def stopGame() : Unit = {
     Partie.stopGame()
+    reader.interrupt = true
     listPlayers = List()
+    setNewGame()
     sendMessage(chan,"No one left at the table, the game was stopped")
   }
 
