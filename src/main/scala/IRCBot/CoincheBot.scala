@@ -21,6 +21,7 @@ class CoincheBot(val chan:String) extends PircBot{
   var listPlayers = List[String]()
   var kickCounter:List[String] = List[String]()
   var voteInProgress:Boolean = false
+  val joueurNull = new Joueur(-1,"")
 
 
   setName("CoincheBot")
@@ -254,16 +255,11 @@ class CoincheBot(val chan:String) extends PircBot{
       case "!join" => playerJoins(sender)
       case "!quit" => quit(sender)
       case "!stop" => stopGame(sender)
-      case "!leave" => if (listPlayers.contains(sender)) leave(sender)
       case "!encheres" | "!enchere"=> if (Partie.State != Partie.State.stopped) printer.printListEnchere(Partie.enchereController.listEnchere)
+      case "!score" |"!scores" => printer.printScores(Partie.scoreTotalNS,Partie.scoreTotalEO)(Partie.listJoueur)
       case "!help" => if (message.trim() == "!help") printer.printHelp(channel)
                       else printer.printHelp(channel,message.split(' ')(1))
       case "!current" => printer.printCurrent(listPlayers)
-      case "!cards" => if (listPlayers.contains(sender)) printer.printCards(Partie.listJoueur.find(_.nom == sender).get)
-      case "!score" |"!scores" => printer.printScores(Partie.scoreTotalNS,Partie.scoreTotalEO)(Partie.listJoueur)
-      case "!votekick" => if (message.split(' ').length == 2 && listPlayers.contains(sender)) voteKick(sender,message.split(' ')(1))
-      case "!voteban" => if (message.split(' ').length == 2 && listPlayers.contains(sender)) voteBan(sender,message.split(' ')(1),login+"@"+hostname)
-      case "!yes" => if (listPlayers.contains(sender) && !kickCounter.contains(sender)) kickCounter=sender::kickCounter
       case "!create" =>
         if (isOp(sender)) {
           try {
@@ -273,59 +269,76 @@ class CoincheBot(val chan:String) extends PircBot{
             case e:IndexOutOfBoundsException => sendMessage(chan,"usage : !create #CHAN")
           }
         } else sendMessage(chan,"Only Ops can create new Channels!")
-      case "bid" | "mise" => {
-        if (!enoughPlayers()) ()
-        else {
-          try {
-            // We're in the bidding phase
-            if (Partie.state == Partie.State.bidding && sender == Partie.currentPlayer.nom) {
-              // "bid 80 Co".split(' ')
-              val array = message.split(' ')
-              if (Enchere.annonceLegal(array(1).toInt)) {
+      case _ => ()
+    }
+
+    if (listPlayers.contains(sender)){
+      cmd toLowerCase() match {
+        case "!leave" => leave(sender)
+        case "!cards" => printer.printCards(Partie.listJoueur.find(_.nom == sender).get)
+        case "!votekick" => if (message.split(' ').length == 2) voteKick(sender,message.split(' ')(1))
+        case "!voteban" => if (message.split(' ').length == 2) voteBan(sender,message.split(' ')(1),login+"@"+hostname)
+        case "!yes" => if (!kickCounter.contains(sender)) kickCounter=sender::kickCounter
+        case "bid" | "mise" => {
+          if (!enoughPlayers()) ()
+          else {
+            try {
+              // We're in the bidding phase
+              if (Partie.state == Partie.State.bidding) {
+                reader.sender = Partie.listJoueur.find(_.nom == sender).get
+                // "bid 80 Co".split(' ')
+                val array = message.split(' ')
                 // "Co"
-                reader.enchere.couleur = array(2)
+                reader.couleur = array(2)
                 // "80".toInt
-                reader.enchere.contrat = array(1).toInt
-                reader.enchere.modified = true
-              }
-              else {
-                sendMessage(chan,sender+" : annonce illegale.")
+                reader.contrat = array(1).toInt
+                reader.modified = true
               }
             }
-          }
-          catch {
-            case e : NumberFormatException => sendMessage(chan,"Format d'une annonce : 'bid <contrat> <couleur>")
-            case e : IndexOutOfBoundsException => sendMessage(chan,"Format d'une annonce : 'bid <contrat> <couleur>")
-          }
-        }
-      }
-      case "passe" if message.trim.toLowerCase == "passe"=> { // "do nothing if msg = 'passe de 20; ...'
-        if (!enoughPlayers()) ()
-        else {
-          if (Partie.state == Partie.State.bidding && sender == Partie.currentPlayer.nom) {
-            reader.enchere.couleur = "passe"
-            reader.enchere.modified = true
+            catch {
+              case e : NumberFormatException => sendMessage(chan,"Format d'une annonce : 'bid <contrat> <couleur>")
+              case e : IndexOutOfBoundsException => sendMessage(chan,"Format d'une annonce : 'bid <contrat> <couleur>")
+            }
           }
         }
-      }
-      case "pl" => {
-        if (!enoughPlayers()) ()
-        else if (Partie.state == Partie.State.playing && sender == Partie.currentPlayer.nom) {
-          val array = message.split(' ')
-          if (array.length == 2) reader.valeur = array(1)
-          else if (array.length == 3) {
-            reader.famille = array(2)
-            reader.valeur = array(1)
+        case "passe" if message.trim.toLowerCase == "passe"=> { // "do nothing if msg = 'passe de 20; ...'
+          if (!enoughPlayers()) ()
+          else {
+            if (Partie.state == Partie.State.bidding) {
+              reader.sender = Partie.listJoueur.find(_.nom == sender).get
+              reader.couleur = "passe"
+              reader.modified = true
+            }
           }
         }
+        case "pl" => {
+          if (!enoughPlayers()) ()
+          else if (Partie.state == Partie.State.playing && sender == Partie.currentPlayer.nom) {
+            val array = message.split(' ')
+            if (array.length == 2) reader.valeur = array(1)
+            else if (array.length == 3) {
+              reader.famille = array(2)
+              reader.valeur = array(1)
+            }
+          }
+        }
+        case "!coinche" => {
+          if (!enoughPlayers()) ()
+          else {
+            reader.sender = Partie.listJoueur.find(_.nom == sender).get
+            reader.coinche = true
+            reader.modified = true
+          }
+        }
+        case "!sur" => {
+          if (!enoughPlayers()) ()
+          else {
+            if (Partie.listJoueur.exists(_.nom == sender))
+              reader.listSurCoincheur = Partie.listJoueur.find(_.nom == sender).get :: reader.listSurCoincheur
+          }
+        }
+        case _ => isCmd = false
       }
-      case "!coinche" => try {
-        if (Partie.enchereController.current.get.id % 2 != Partie.listJoueur.find(_.nom == sender).get.id % 2) reader.coinche = true
-      } catch {case _:Throwable => ()}
-      case "!sur" => try {
-        if (Partie.enchereController.current.get.id % 2 == Partie.listJoueur.find(_.nom == sender).get.id % 2) reader.surcoinche = true
-      } catch {case _:Throwable => ()}
-      case _ => isCmd = false
     }
     if (isCmd) Spam.increment(login+"@"+hostname,sender)
   }

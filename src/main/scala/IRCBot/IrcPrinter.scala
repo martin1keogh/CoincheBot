@@ -177,7 +177,7 @@ abstract class IrcPrinter(val chan:String) extends Printer{
 
   def printCards(implicit j: Joueur):Unit = {
     val stringBuilder = new StringBuilder
-    val sbList = j.main.groupBy(_.famille).mapValues(famille => {
+    val sbList = j.main.sortBy(-_.ordreAtout).groupBy(_.famille).mapValues(famille => {
       val sb = new StringBuilder
       famille.map(cardToString(_)).addString(sb," ")
     }).values.toList

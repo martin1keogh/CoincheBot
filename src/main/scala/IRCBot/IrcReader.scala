@@ -1,45 +1,39 @@
 package IRCBot
 
 import UI.Reader
-import GameLogic.Card
+import GameLogic.{Enchere, Joueur, Card}
+import UI.Reader.{Bid, Passe, Coinche, Message}
 
 class IrcReader(printer:IrcPrinter) extends Reader {
 
-  class State(var modified:Boolean, var couleur:String, var contrat:Int)
-
   var interrupt = false
 
-  val enchere = new State(false,"",0)
+  var sender:Joueur = null
+  var contrat = 0
+  var couleur = ""
   var coinche = false
-  var surcoinche = false
-  def getCouleur: Int = {
-    // Re-initialisation
-    enchere.couleur = ""
-    enchere.contrat = 0
-    enchere.modified = false
+  var modified = false
+  def getMessage: (Joueur, Message) = {
+    contrat = 0
+    couleur = ""
     coinche = false
-    surcoinche = false
-    while (!enchere.modified) {
+    modified = false
+
+    while (!modified){
       if (interrupt) throw new InterruptedException
-      Thread.sleep(100)
-      if (surcoinche) return 8
-      if (coinche) return 7
+      Thread.sleep(1000)
     }
-    enchere.couleur.toUpperCase match {
+    if (coinche) return (sender,Coinche())
+    if (couleur == "passe") return (sender,Passe())
+    val c = couleur.toUpperCase match {
       case "PIQUE" | "P" => 1
       case "CARREAU" | "CA" => 2
       case "TREFLE" | "T"=> 3
       case "COEUR" | "CO"=> 4
       case "TA" => 5
       case "SA" => 6
-      case "PASSE" => 0
-      case _ => getCouleur
     }
-  }
-
-  // 'contrat' is set during getCouleur
-  def getContrat: Int = {
-    enchere.contrat
+    (sender,Bid(Enchere.intToCouleur(c),contrat))
   }
 
   // Are we waiting for someone to play a card ?
@@ -82,4 +76,10 @@ class IrcReader(printer:IrcPrinter) extends Reader {
     }
   }
 
+  var listSurCoincheur:List[Joueur] = List()
+  def getSurCoinche: List[Joueur] = {
+    listSurCoincheur = List()
+    Thread.sleep(5000)
+    listSurCoincheur
+  }
 }
