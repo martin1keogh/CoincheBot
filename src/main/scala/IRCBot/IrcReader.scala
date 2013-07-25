@@ -26,12 +26,12 @@ class IrcReader(printer:IrcPrinter) extends Reader {
     if (coinche) return (sender,Coinche())
     if (couleur == "passe") return (sender,Passe())
     val c = couleur.toUpperCase match {
-      case "PIQUE" | "P" => 1
-      case "CARREAU" | "CA" => 2
-      case "TREFLE" | "T"=> 3
-      case "COEUR" | "CO"=> 4
-      case "TA" => 5
-      case "SA" => 6
+      case "PIQUE" | "P" => 0
+      case "CARREAU" | "CA" => 1
+      case "TREFLE" | "T"=> 2
+      case "COEUR" | "CO"=> 3
+      case "TA" => 4
+      case "SA" => 5
     }
     (sender,Bid(Enchere.intToCouleur(c),contrat))
   }
