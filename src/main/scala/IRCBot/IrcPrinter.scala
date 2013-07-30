@@ -103,6 +103,9 @@ abstract class IrcPrinter(val chan:String) extends Printer{
     sendMessage("score "+c+"/"+d+" :"+EO)
   }
 
+  def cardUnplayable = sendMessage("Carte injouable")
+
+  def annonceImpossible = sendMessage("Annonce impossible")
 
   // Unused in CoincheBot (sending every player all their cards
   // every turn spams the irc server)
@@ -218,6 +221,10 @@ abstract class IrcPrinter(val chan:String) extends Printer{
       sendMessage(j,stringBuilder.toString())
     }
     listJoueur.foreach(j => aux(j))
+  }
+
+  def printCardUnplayable:Unit = {
+    sendMessage("Carte non jouable.")
   }
 
 

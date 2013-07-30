@@ -6,17 +6,18 @@ import GameLogic.{Joueur, Partie}
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection.concurrent.TrieMap
+import akka.actor.ActorRef
 
 class CoincheBot(val chan:String) extends PircBot{
+
 
   var printer = new IrcPrinter(chan) {
     def sendMessage(j:Joueur,s:String) = CoincheBot.this.sendMessage(j.nom,s)
     def sendMessage(s:String) = CoincheBot.this.sendMessage(chan,s)
     def sendMessage(chan:String,s:String) = CoincheBot.this.sendMessage(chan,s)
   }
-  var reader = new IrcReader(printer)
-  var Partie = new Partie(printer,reader)
-  var Enchere = Partie.enchereController
+  var reader = new IrcReader()
+  var partie = new Partie(printer,reader)
 
   var listPlayers = List[String]()
   var kickCounter:List[String] = List[String]()
@@ -88,17 +89,18 @@ class CoincheBot(val chan:String) extends PircBot{
   }
 
   def setNewGame() : Unit = {
-    printer = new IrcPrinter(chan) {
+    val printer = new IrcPrinter(chan) {
       def sendMessage(j:Joueur,s:String) = CoincheBot.this.sendMessage(j.nom,s)
       def sendMessage(s:String) = CoincheBot.this.sendMessage(chan,s)
       def sendMessage(chan:String,s:String) = CoincheBot.this.sendMessage(chan,s)
     }
-    reader = new IrcReader(printer)
-    Partie = new Partie(printer,reader)
-    Enchere = Partie.enchereController
+    val reader = new IrcReader
+    partie = new Partie(printer,reader)
   }
 
   def isOp(sender:String):Boolean = getUsers(chan).find(_.getNick == sender).get.isOp
+
+  def findPlayerByName(s:String):Joueur = partie.listJoueur.find(_.nom == s).get
 
   def voteKick(caller:String,nick:String) : Unit = Future {
     if (!voteInProgress) {
@@ -138,12 +140,11 @@ class CoincheBot(val chan:String) extends PircBot{
 
   def stopGame(sender:String) : Unit = {
     if (isOp(sender) || listPlayers.contains(sender)){ // not sure about the second condition, probably going to make it a vote
-      Partie.stopGame()
-      reader.interrupt = true
+      reader.stopGame
       listPlayers = List()
       setNewGame()
       sendMessage(chan,"Game was stopped")
-    } else if (Partie.state == Partie.State.stopped) sendMessage(chan,"No game running atm")
+    } else if (partie.state == partie.State.stopped) sendMessage(chan,"No game running atm")
     else {
       // unused right now, need to implement vote
       sendMessage(chan,"Only Op can stop games ATM (todo : have players vote to stop the game)")
@@ -151,20 +152,19 @@ class CoincheBot(val chan:String) extends PircBot{
   }
 
   def stopGame() : Unit = {
-    Partie.stopGame()
-    reader.interrupt = true
+    reader.stopGame
     listPlayers = List()
     setNewGame()
     sendMessage(chan,"No one left at the table, the game was stopped")
   }
 
   def startGame() : Unit = {
-    Partie.printOnlyOnce = true
+    partie.printOnlyOnce = true
 
-    printer.printTeams(Partie.listJoueur)
+    printer.printTeams(partie.listJoueur)
 
-    // start Partie on another thread
-    Future{Partie.start();listPlayers = List()}
+    // start partie on another thread
+    Future{partie.start();listPlayers = List()}
   }
 
   /**
@@ -196,19 +196,19 @@ class CoincheBot(val chan:String) extends PircBot{
       if (listPlayers.exists(_ == "None")) {
         try {
           listPlayers = changeOneElement(listPlayers,s => s == "None",sender)
-          Partie.listJoueur.find(j => j.nom == "None").get.rename(sender)
+          partie.listJoueur.find(j => j.nom == "None").get.rename(sender)
           sendMessage(chan,sender+" rejoint la table.")
         } catch {
           case e:NoSuchElementException => println("Error in playerJoins :"+e);()
         }
         // if table is full again
-        if (listPlayers.length == 4 && !listPlayers.exists(_ == "None")) printer.printRestart(Partie)
+        if (listPlayers.length == 4 && !listPlayers.exists(_ == "None")) printer.printRestart(partie)
       }
       else {
         listPlayers = sender :: listPlayers
-        Partie.listJoueur(listPlayers.length - 1).rename(sender)
+        partie.listJoueur(listPlayers.length - 1).rename(sender)
         sendMessage(chan,sender+" rejoint la table.")
-        if (listPlayers.length == 4 && Partie.state == Partie.State.stopped) startGame()
+        if (listPlayers.length == 4 && partie.state == partie.State.stopped) startGame()
       }
     }
   }
@@ -221,7 +221,7 @@ class CoincheBot(val chan:String) extends PircBot{
   def leave(sender:String):Unit = {
     try {
       listPlayers = listPlayers.map(s => if (s == sender) "None" else s)
-      Partie.listJoueur.find(_.nom == sender).get.rename("None")
+      partie.listJoueur.find(_.nom == sender).get.rename("None")
       sendMessage(chan,sender+" left.")
       // nobody left at the table
       if (listPlayers.forall(_ == "None")) stopGame()
@@ -255,8 +255,8 @@ class CoincheBot(val chan:String) extends PircBot{
       case "!join" => playerJoins(sender)
       case "!quit" => quit(sender)
       case "!stop" => stopGame(sender)
-      case "!encheres" | "!enchere"=> if (Partie.State != Partie.State.stopped) printer.printListEnchere(Partie.enchereController.listEnchere)
-      case "!score" |"!scores" => printer.printScores(Partie.scoreTotalNS,Partie.scoreTotalEO)(Partie.listJoueur)
+      case "!encheres" | "!enchere"=> if (partie.State != partie.State.stopped) printer.printListEnchere(partie.enchereController.listEnchere)
+      case "!score" |"!scores" => printer.printScores(partie.scoreTotalNS,partie.scoreTotalEO)(partie.listJoueur)
       case "!help" => if (message.trim() == "!help") printer.printHelp(channel)
                       else printer.printHelp(channel,message.split(' ')(1))
       case "!current" => printer.printCurrent(listPlayers)
@@ -275,7 +275,7 @@ class CoincheBot(val chan:String) extends PircBot{
     if (listPlayers.contains(sender)){
       cmd toLowerCase() match {
         case "!leave" => leave(sender)
-        case "!cards" => printer.printCards(Partie.listJoueur.find(_.nom == sender).get)
+        case "!cards" => printer.printCards(partie.listJoueur.find(_.nom == sender).get)
         case "!votekick" => if (message.split(' ').length == 2) voteKick(sender,message.split(' ')(1))
         case "!voteban" => if (message.split(' ').length == 2) voteBan(sender,message.split(' ')(1),login+"@"+hostname)
         case "!yes" => if (!kickCounter.contains(sender)) kickCounter=sender::kickCounter
@@ -283,63 +283,33 @@ class CoincheBot(val chan:String) extends PircBot{
           if (!enoughPlayers()) ()
           else {
             try {
-              // We're in the bidding phase
-              if (Partie.state == Partie.State.bidding) {
-                reader.sender = Partie.listJoueur.find(_.nom == sender).get
-                // "bid 80 Co".split(' ')
-                val array = message.split(' ')
-                // "Co"
-                reader.couleur = array(2)
-                // "80".toInt
-                reader.contrat = array(1).toInt
-                reader.modified = true
-              }
+              reader sendMessage(findPlayerByName(sender), message)
             }
             catch {
-              case e : NumberFormatException => sendMessage(chan,"Format d'une annonce : 'bid <contrat> <couleur>")
-              case e : IndexOutOfBoundsException => sendMessage(chan,"Format d'une annonce : 'bid <contrat> <couleur>")
+              case e: NumberFormatException => sendMessage(chan, "Format d'une annonce : 'bid <contrat> <couleur>")
+              case e: IndexOutOfBoundsException => sendMessage(chan, "Format d'une annonce : 'bid <contrat> <couleur>")
             }
           }
         }
         case "passe" if message.trim.toLowerCase == "passe"=> { // "do nothing if msg = 'passe de 20; ...'
           if (!enoughPlayers()) ()
-          else {
-            if (Partie.state == Partie.State.bidding) {
-              reader.sender = Partie.listJoueur.find(_.nom == sender).get
-              reader.couleur = "passe"
-              reader.modified = true
-            }
-          }
+          else reader.sendMessage(findPlayerByName(sender),message)
         }
         case "pl" => {
           if (!enoughPlayers()) ()
-          else if (Partie.state == Partie.State.playing && sender == Partie.currentPlayer.nom) {
-            val array = message.split(' ')
-            if (array.length == 2) reader.valeur = array(1)
-            else if (array.length == 3) {
-              reader.famille = array(2)
-              reader.valeur = array(1)
-            }
-          }
+          else reader.sendMessage(findPlayerByName(sender),message)
         }
         case "!coinche" => {
           if (!enoughPlayers()) ()
-          else {
-            reader.sender = Partie.listJoueur.find(_.nom == sender).get
-            reader.coinche = true
-            reader.modified = true
-          }
+          else reader.sendMessage(findPlayerByName(sender),message)
         }
         case "!sur" => {
           if (!enoughPlayers()) ()
-          else {
-            if (Partie.listJoueur.exists(_.nom == sender))
-              reader.listSurCoincheur = Partie.listJoueur.find(_.nom == sender).get :: reader.listSurCoincheur
-          }
+          else reader.sendMessage(findPlayerByName(sender),message)
         }
         case _ => isCmd = false
       }
-    }
+    } else isCmd = false
     if (isCmd) Spam.increment(login+"@"+hostname,sender)
   }
 
@@ -357,7 +327,7 @@ class CoincheBot(val chan:String) extends PircBot{
 
   override def onNickChange(oldNick:String,login:String,hostname:String,newNick:String):Unit = {
     listPlayers = listPlayers.map(s => if (s == oldNick) newNick else s )
-    Partie.listJoueur.foreach(j => if (j.nom == oldNick) j.rename(newNick))
+    partie.listJoueur.foreach(j => if (j.nom == oldNick) j.rename(newNick))
   }
 
   override def onPart(channel:String,sender:String,login:String,hostname:String):Unit = {
