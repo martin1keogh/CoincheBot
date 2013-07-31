@@ -178,6 +178,7 @@ abstract class IrcPrinter(val chan:String) extends Printer{
     }
   }
 
+  // printCards during bids
   def printCards(implicit j: Joueur):Unit = {
     val stringBuilder = new StringBuilder
     val sbList = j.main.sortBy(-_.ordreAtout).groupBy(_.famille).mapValues(famille => {
@@ -192,10 +193,13 @@ abstract class IrcPrinter(val chan:String) extends Printer{
     val stringBuilder = new StringBuilder
     val sbList = j.main.groupBy(_.famille).mapValues(famille => {
       val sb = new StringBuilder
-      if (famille.head.famille == couleurAtout) {
+      if (couleurAtout == 4 || couleurAtout == -1)  { //tout atout ou durant les encheres
+        (1,famille.sortBy(-_.ordreAtout).map(cardToString(_)).addString(sb," "))
+      }
+      else if (famille.head.famille == couleurAtout) {
         sb.append("(Atout) ")
-        (1,famille.map(cardToString(_)).addString(sb," "))
-      } else (0,famille.map(cardToString(_)).addString(sb," "))
+        (1,famille.sortBy(-_.ordreAtout).map(cardToString(_)).addString(sb," "))
+      } else (0,famille.sortBy(-_.ordreClassique).map(cardToString(_)).addString(sb," "))
     }).values.toList
     // On met l'atout en premiere couleur
     sbList.sortBy(-_._1).unzip._2.addString(stringBuilder,Colors.NORMAL+" - ")

@@ -275,7 +275,7 @@ class CoincheBot(val chan:String) extends PircBot{
     if (listPlayers.contains(sender)){
       cmd toLowerCase() match {
         case "!leave" => leave(sender)
-        case "!cards" => printer.printCards(partie.listJoueur.find(_.nom == sender).get)
+        case "!cards" => printer.printCards(partie.enchereController.couleur)(findPlayerByName(sender))
         case "!votekick" => if (message.split(' ').length == 2) voteKick(sender,message.split(' ')(1))
         case "!voteban" => if (message.split(' ').length == 2) voteBan(sender,message.split(' ')(1),login+"@"+hostname)
         case "!yes" => if (!kickCounter.contains(sender)) kickCounter=sender::kickCounter
