@@ -11,13 +11,13 @@ import akka.actor.ActorRef
 class CoincheBot(val chan:String) extends PircBot{
 
 
-  var printer = new IrcPrinter(chan) {
+  val printer = new IrcPrinter(chan) {
     def sendMessage(j:Joueur,s:String) = CoincheBot.this.sendMessage(j.nom,s)
     def sendMessage(s:String) = CoincheBot.this.sendMessage(chan,s)
     def sendMessage(chan:String,s:String) = CoincheBot.this.sendMessage(chan,s)
   }
-  var reader = new IrcReader()
-  var partie = new Partie(printer,reader)
+  val reader = new IrcReader()
+  val partie = new Partie(printer,reader)
 
   var listPlayers = List[String]()
   var kickCounter:List[String] = List[String]()
@@ -88,16 +88,6 @@ class CoincheBot(val chan:String) extends PircBot{
     }
   }
 
-  def setNewGame() : Unit = {
-    val printer = new IrcPrinter(chan) {
-      def sendMessage(j:Joueur,s:String) = CoincheBot.this.sendMessage(j.nom,s)
-      def sendMessage(s:String) = CoincheBot.this.sendMessage(chan,s)
-      def sendMessage(chan:String,s:String) = CoincheBot.this.sendMessage(chan,s)
-    }
-    val reader = new IrcReader
-    partie = new Partie(printer,reader)
-  }
-
   def isOp(sender:String):Boolean = getUsers(chan).find(_.getNick == sender).get.isOp
 
   def findPlayerByName(s:String):Joueur = partie.listJoueur.find(_.nom == s).get
@@ -142,7 +132,6 @@ class CoincheBot(val chan:String) extends PircBot{
     if (isOp(sender) || listPlayers.contains(sender)){ // not sure about the second condition, probably going to make it a vote
       reader.stopGame
       listPlayers = List()
-      setNewGame()
       sendMessage(chan,"Game was stopped")
     } else if (partie.state == partie.State.stopped) sendMessage(chan,"No game running atm")
     else {
@@ -154,7 +143,6 @@ class CoincheBot(val chan:String) extends PircBot{
   def stopGame() : Unit = {
     reader.stopGame
     listPlayers = List()
-    setNewGame()
     sendMessage(chan,"No one left at the table, the game was stopped")
   }
 
