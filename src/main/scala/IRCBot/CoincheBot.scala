@@ -350,6 +350,7 @@ object CoincheBot extends App {
 
   // automatically play for you, if you don't have a choice
   val automaticPlay = config.getBoolean("config.automaticPlay")
+  val debug: Boolean = try{config.getBoolean("config.debug")}catch{case _:Throwable => false}
 
   def routine(chan:String,name:String,pass:String) = {
     // bot creation

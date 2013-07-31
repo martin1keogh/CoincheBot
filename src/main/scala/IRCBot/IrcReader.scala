@@ -47,4 +47,14 @@ class IrcReader() extends Reader{
       case e:Throwable => None
     }
   }
+
+  override def sendMessage(j:Joueur,m:Input) = {
+    if (CoincheBot.debug) {
+      println("received "+m+" from player "+j)
+      val translated = inputToBiddingMessageOption(j,m) orElse inputToPlayingMessageOption(j,m)
+      if (translated.isDefined) println("sending "+translated.get)
+      else println("did not recognize the message")
+    }
+    super.sendMessage(j,m)
+  }
 }
