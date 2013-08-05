@@ -17,9 +17,15 @@ class IrcReader() extends Reader{
       val cardInfo = input.toString.split(' ')
       // if player only supplied a card value, we check if a (playable) color corresponds
       if (cardInfo.length == 2) {
-        List.tabulate(4)(i => new Card(Card.stringToValeur(cardInfo(1)) + i * 8))
-      } else
-        List(new Card(Card.stringToFamille(cardInfo(2))*8 + Card.stringToValeur(cardInfo(1))))
+        val valeur = Card.stringToValeur(cardInfo(1))
+        if (valeur == -1) List.empty[Card]
+        else List.tabulate(4)(i => new Card(valeur + i * 8))
+      } else {
+        val famille = Card.stringToFamille(cardInfo(2))
+        val valeur = Card.stringToValeur(cardInfo(1))
+        if (famille == -1 || valeur == -1) List.empty[Card]
+        else List(new Card(famille*8 + valeur))
+      }
     } catch {
       case e:Throwable => List.empty[Card]
     }

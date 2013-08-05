@@ -161,7 +161,7 @@ class CoincheBot(val chan:String) extends PircBot{
    * @param sender Person who called '!quit'
    */
   def quit(sender:String):Unit = {
-    if (isOp(sender)) {disconnect();sys.exit()}
+    if (isOp(sender)) disconnect()
     else {sendMessage(chan,sender+" : you are not op.")}
   }
 
@@ -336,15 +336,13 @@ object CoincheBot extends App {
 
   val config = ConfigFactory.load()
 
-  // automatically play for you, if you don't have a choice
-  val automaticPlay = config.getBoolean("config.automaticPlay")
   val debug: Boolean = try{config.getBoolean("config.debug")}catch{case _:Throwable => false}
 
   def routine(chan:String,name:String,pass:String) = {
     // bot creation
     val bot = new CoincheBot(chan)
     // IllegalAccessError
-    //  bot.setName(config.getString("config.nick"))
+    //  bot.setName(config.getString(name))
 
     bot.setVerbose(config.getBoolean("config.debug"))
     bot.setMessageDelay(config.getInt("config.throttle"))
