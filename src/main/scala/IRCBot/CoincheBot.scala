@@ -44,6 +44,7 @@ class CoincheBot(val chan:String) extends PircBot{
     val limit = 4
 
     def setBan(mask:String):Unit = kickedOnceList = mask :: kickedOnceList
+    def unsetBan(mask:String):Unit = kickedOnceList = kickedOnceList diff List(mask)
 
     /**
      * Decrement every mask's value.
@@ -70,6 +71,7 @@ class CoincheBot(val chan:String) extends PircBot{
           {case (mask:String,nick:String) =>{
             if (kickedOnceList.contains(mask)) {
               ban(chan,"*!"+mask)
+              unsetBan(mask)
               if (listPlayers.contains(nick)) leave(nick)
             }
             else {kick(chan,nick,"Command spam detected, you'll be banned next time.")
