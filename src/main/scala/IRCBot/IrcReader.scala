@@ -1,12 +1,11 @@
 package IRCBot
 
 import UI.Reader
-import GameLogic.{Enchere, Joueur, Card}
+import GameLogic.Card
 import UI.Reader._
 import GameLogic.Joueur
 import UI.Reader.Bid
 import UI.Reader.Coinche
-import akka.actor.ActorRef
 
 class IrcReader() extends Reader{
 

@@ -6,7 +6,7 @@ import GameLogic.{Joueur, Partie}
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection.concurrent.TrieMap
-import akka.actor.ActorRef
+import GameLogic.Bot.{Bot, DumBot}
 
 class CoincheBot(val chan:String) extends PircBot{
 
@@ -131,12 +131,12 @@ class CoincheBot(val chan:String) extends PircBot{
   }
 
   def stopGame(sender:String) : Unit = {
-    if (isOp(sender) || listPlayers.contains(sender)){ // not sure about the second condition, probably going to make it a vote
+    if (partie.state == partie.State.stopped) sendMessage(chan,"No game running atm")
+    else if (isOp(sender) || listPlayers.contains(sender)){ // not sure about the second condition, probably going to make it a vote
       reader.stopGame
       listPlayers = List()
       sendMessage(chan,"Game was stopped")
-    } else if (partie.state == partie.State.stopped) sendMessage(chan,"No game running atm")
-    else {
+    }else {
       // unused right now, need to implement vote
       sendMessage(chan,"Only Op can stop games ATM (todo : have players vote to stop the game)")
     }
@@ -151,6 +151,7 @@ class CoincheBot(val chan:String) extends PircBot{
   def startGame() : Unit = {
     partie.printOnlyOnce = true
 
+    partie.listJoueur.zip(listPlayers).foreach({case (j,s) =>j.rename(s)})
     printer.printTeams(partie.listJoueur)
 
     // start partie on another thread
@@ -195,9 +196,41 @@ class CoincheBot(val chan:String) extends PircBot{
         if (listPlayers.length == 4 && !listPlayers.exists(_ == "None")) printer.printRestart(partie)
       }
       else {
-        listPlayers = sender :: listPlayers
-        partie.listJoueur(listPlayers.length - 1).rename(sender)
+        listPlayers = listPlayers :+ sender
         sendMessage(chan,sender+" rejoint la table.")
+        if (listPlayers.length == 4 && partie.state == partie.State.stopped) startGame()
+      }
+    }
+  }
+
+  def botJoins(botType:String,botName:String):Unit = {
+    val createBot = botType.toLowerCase match {
+      case "dumbot" => DumBot.createFromPlayer _
+      case _ => {sendMessage(chan,"Type de bot inconnu");return}
+    }
+    if (partie.listJoueur.count({case b:Bot => true;case _ => false}) == 3) sendMessage(chan,"Deja 3 bot a la table!")
+    else if (listPlayers.length == 4 && !listPlayers.exists(_ == "None")) sendMessage(chan,"La table de coinche est deja pleine!")
+    else {
+      // Someone left the table, let's replace him/her
+      if (listPlayers.exists(_ == "None")) {
+        try {
+          listPlayers = changeOneElement(listPlayers,s => s == "None",botName)
+          val old = partie.listJoueur.find(j => j.nom == "None").get
+          val _new = createBot(partie,old)
+          _new.rename(botName)
+          partie.playerToBot(old,_new)
+        } catch {
+          case e:NoSuchElementException => println("Error in playerJoins :"+e)
+        }
+        // if table is full again
+        if (listPlayers.length == 4 && !listPlayers.exists(_ == "None")) printer.printRestart(partie)
+      }
+      else {
+        listPlayers = listPlayers :+ botName
+        val old = partie.listJoueur(listPlayers.length - 1)
+        val _new = createBot(partie,old)
+        _new.rename(botName)
+        partie.playerToBot(old,_new)
         if (listPlayers.length == 4 && partie.state == partie.State.stopped) startGame()
       }
     }
@@ -211,7 +244,7 @@ class CoincheBot(val chan:String) extends PircBot{
   def leave(sender:String):Unit = {
     try {
       listPlayers = listPlayers.map(s => if (s == sender) "None" else s)
-      partie.listJoueur.find(_.nom == sender).get.rename("None")
+      partie.listJoueur.find(_.nom == sender).foreach(_.rename("None"))
       sendMessage(chan,sender+" left.")
       // nobody left at the table
       if (listPlayers.forall(_ == "None")) stopGame()
@@ -245,11 +278,19 @@ class CoincheBot(val chan:String) extends PircBot{
       case "!join" => playerJoins(sender)
       case "!quit" => quit(sender)
       case "!stop" => stopGame(sender)
-      case "!encheres" | "!enchere"=> if (partie.State != partie.State.stopped) printer.printListEnchere(partie.enchereController.listEnchere)
-      case "!score" |"!scores" => printer.printScores(partie.scoreTotalNS,partie.scoreTotalEO)(partie.listJoueur)
+      case "!encheres" | "!enchere"=> if (partie.state != partie.State.stopped) printer.printListEnchere(partie.enchereController.listEnchere)
+      case "!score" |"!scores" => if (partie.state != partie.State.stopped) printer.printScores(partie.scoreTotalNS,partie.scoreTotalEO)(partie.listJoueur)
       case "!help" => if (message.trim() == "!help") printer.printHelp(channel)
                       else printer.printHelp(channel,message.split(' ')(1))
       case "!current" => printer.printCurrent(listPlayers)
+      case "!addbot" => try{
+        botJoins(message.split(' ')(1),message.split(' ')(2))
+      } catch {case e:Throwable => sendMessage(chan,"Usage : !addbot botType botName")}
+      case "!removebot" => try{
+        val bot = partie.listJoueur.find({case b:Bot => b.nom == message.split(' ')(1); case _ => false}).get
+        partie.botToPlayer(bot)
+        leave(bot.nom)
+      } catch {case e:Throwable => sendMessage(chan,"Usage : !removebot <botName>")}
       case "!create" =>
         if (isOp(sender)) {
           try {

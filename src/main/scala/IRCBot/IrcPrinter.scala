@@ -4,6 +4,7 @@ import UI.Printer
 import GameLogic.{Partie, Card, Joueur, Enchere}
 import org.jibble.pircbot.Colors
 import scala.language.implicitConversions
+import GameLogic.Bot.Bot
 
 abstract class IrcPrinter(val chan:String) extends Printer{
 
@@ -17,7 +18,7 @@ abstract class IrcPrinter(val chan:String) extends Printer{
   val colorClubs = Colors.NORMAL
   val colorHeart = Colors.RED
 
-  def valeurToString(c:Card):String = c.valeur match {
+  def valeurToString(c:Card):String = c.v match {
     case 0 => "7"
     case 1 => "8"
     case 2 => "9"
@@ -51,9 +52,13 @@ abstract class IrcPrinter(val chan:String) extends Printer{
     }
   }
 
+  def printEnchere(e:Option[Enchere]):Unit = {
+    if (e.isDefined) sendMessage(chan,e.get.toString())
+  }
+
   def printHelp(chan:String) : Unit = {
     sendMessage(chan,"Command list : !quit, !stop, !join, !current, !encheres," +
-      " !cards, !leave, !scores, !votekick, !voteban, !create")
+      " !cards, !leave, !scores, !votekick, !voteban, !create, !addbot, !removebot")
     sendMessage(chan,"While playing : bid, pl, !coinche")
     sendMessage(chan,"!help <cmd> for more information on <cmd>")
   }
@@ -71,6 +76,10 @@ abstract class IrcPrinter(val chan:String) extends Printer{
       case "!cards" => sendMessage("!cards : shows the player his cards (query)")
       case "!coinche" => sendMessage("!coinche : coinche the current bid (!sur to surcoinche)")
       case "!scores" => sendMessage("!score : print scores")
+      case "!addbot" => {
+        sendMessage("!addbot <botType> <botName>: add <botType> as a player with name <botName>.")
+        sendMessage("botTypes : DumBot")
+      }
       case "!votekick" => sendMessage("!votekick <nick> : starts a vote among players to kick <nick>. Only works when playing a game!")
       case "!voteban" => sendMessage("!voteban <nick> : starts a vote among players to ban <nick>. Only works when playing a game!")
       case "bid" => {
@@ -139,6 +148,7 @@ abstract class IrcPrinter(val chan:String) extends Printer{
   def printRestart(Partie:Partie) : Unit = {
     if (Partie.state == Partie.State.running) tourJoueur(Partie.currentPlayer)
     if (Partie.state == Partie.State.bidding) tourJoueurEnchere(Partie.currentPlayer)
+    println(Partie.state)
   }
 
   def pasDePrise() {sendMessage("Pas de prise")}
@@ -207,7 +217,7 @@ abstract class IrcPrinter(val chan:String) extends Printer{
   }
 
   def printCardsToAll(couleurAtout: Int)(implicit listJoueur:List[Joueur]) {
-    listJoueur.foreach(j => printCards(couleurAtout)(j))
+    listJoueur.foreach(j => j match {case b:Bot=>();case _ => printCards(couleurAtout)(j)})
   }
 
   /**
@@ -224,7 +234,7 @@ abstract class IrcPrinter(val chan:String) extends Printer{
       sbList.addString(stringBuilder,Colors.NORMAL+" - ")
       sendMessage(j,stringBuilder.toString())
     }
-    listJoueur.foreach(j => aux(j))
+    listJoueur.foreach(j => j match {case _:Bot => ();case _ =>aux(j)})
   }
 
   def printCardUnplayable:Unit = {
