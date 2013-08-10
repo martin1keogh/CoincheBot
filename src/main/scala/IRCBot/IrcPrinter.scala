@@ -4,7 +4,7 @@ import UI.Printer
 import GameLogic.{Partie, Card, Joueur, Enchere}
 import org.jibble.pircbot.Colors
 import scala.language.implicitConversions
-import GameLogic.Bot.Bot
+import GameLogic.Bot.BotTrait
 
 abstract class IrcPrinter(val chan:String) extends Printer{
 
@@ -217,7 +217,7 @@ abstract class IrcPrinter(val chan:String) extends Printer{
   }
 
   def printCardsToAll(couleurAtout: Int)(implicit listJoueur:List[Joueur]) {
-    listJoueur.foreach(j => j match {case b:Bot=>();case _ => printCards(couleurAtout)(j)})
+    listJoueur.foreach(j => j match {case b:BotTrait=>();case _ => printCards(couleurAtout)(j)})
   }
 
   /**
@@ -234,7 +234,7 @@ abstract class IrcPrinter(val chan:String) extends Printer{
       sbList.addString(stringBuilder,Colors.NORMAL+" - ")
       sendMessage(j,stringBuilder.toString())
     }
-    listJoueur.foreach(j => j match {case _:Bot => ();case _ =>aux(j)})
+    listJoueur.foreach(j => j match {case _:BotTrait => ();case _ =>aux(j)})
   }
 
   def printCardUnplayable:Unit = {

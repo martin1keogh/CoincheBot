@@ -6,7 +6,7 @@ import GameLogic.{Joueur, Partie}
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection.concurrent.TrieMap
-import GameLogic.Bot.{Bot, DumBot}
+import GameLogic.Bot.{BotTrait, DumBot}
 
 class CoincheBot(val chan:String) extends PircBot{
 
@@ -208,7 +208,7 @@ class CoincheBot(val chan:String) extends PircBot{
       case "dumbot" => DumBot.createFromPlayer _
       case _ => {sendMessage(chan,"Type de bot inconnu");return}
     }
-    if (partie.listJoueur.count({case b:Bot => true;case _ => false}) == 3) sendMessage(chan,"Deja 3 bot a la table!")
+    if (partie.listJoueur.count({case b:BotTrait => true;case _ => false}) == 3) sendMessage(chan,"Deja 3 bot a la table!")
     else if (listPlayers.length == 4 && !listPlayers.exists(_ == "None")) sendMessage(chan,"La table de coinche est deja pleine!")
     else {
       // Someone left the table, let's replace him/her
@@ -287,7 +287,7 @@ class CoincheBot(val chan:String) extends PircBot{
         botJoins(message.split(' ')(1),message.split(' ')(2))
       } catch {case e:Throwable => sendMessage(chan,"Usage : !addbot botType botName")}
       case "!removebot" => try{
-        val bot = partie.listJoueur.find({case b:Bot => b.nom == message.split(' ')(1); case _ => false}).get
+        val bot = partie.listJoueur.find({case b:BotTrait => b.nom == message.split(' ')(1); case _ => false}).get
         partie.botToPlayer(bot)
         leave(bot.nom)
       } catch {case e:Throwable => sendMessage(chan,"Usage : !removebot <botName>")}
