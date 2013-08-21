@@ -193,7 +193,7 @@ abstract class IrcPrinter(val chan:String) extends Printer{
     val stringBuilder = new StringBuilder
     val sbList = j.main.sortBy(-_.ordreAtout).groupBy(_.famille).mapValues(famille => {
       val sb = new StringBuilder
-      famille.map(cardToString(_)).addString(sb," ")
+      famille.map(cardToString).addString(sb," ")
     }).values.toList
     sbList.addString(stringBuilder," - ")
     sendMessage(j,stringBuilder.toString())
@@ -204,12 +204,12 @@ abstract class IrcPrinter(val chan:String) extends Printer{
     val sbList = j.main.groupBy(_.famille).mapValues(famille => {
       val sb = new StringBuilder
       if (couleurAtout == 4 || couleurAtout == -1)  { //tout atout ou durant les encheres
-        (1,famille.sortBy(-_.ordreAtout).map(cardToString(_)).addString(sb," "))
+        (1,famille.sortBy(-_.ordreAtout).map(cardToString).addString(sb," "))
       }
       else if (famille.head.famille == couleurAtout) {
         sb.append("(Atout) ")
-        (1,famille.sortBy(-_.ordreAtout).map(cardToString(_)).addString(sb," "))
-      } else (0,famille.sortBy(-_.ordreClassique).map(cardToString(_)).addString(sb," "))
+        (1,famille.sortBy(-_.ordreAtout).map(cardToString).addString(sb," "))
+      } else (0,famille.sortBy(-_.ordreClassique).map(cardToString).addString(sb," "))
     }).values.toList
     // On met l'atout en premiere couleur
     sbList.sortBy(-_._1).unzip._2.addString(stringBuilder,Colors.NORMAL+" - ")
@@ -229,7 +229,7 @@ abstract class IrcPrinter(val chan:String) extends Printer{
       val stringBuilder = new StringBuilder
       val sbList = j.main.groupBy(_.famille).map({case (id,famille) =>
         val sb = new StringBuilder
-        famille.sortBy(-_.ordreAtout).map(cardToString(_)).addString(sb," ")
+        famille.sortBy(-_.ordreAtout).map(cardToString).addString(sb," ")
       })
       sbList.addString(stringBuilder,Colors.NORMAL+" - ")
       sendMessage(j,stringBuilder.toString())
@@ -237,7 +237,7 @@ abstract class IrcPrinter(val chan:String) extends Printer{
     listJoueur.foreach(j => j match {case _:BotTrait => ();case _ =>aux(j)})
   }
 
-  def printCardUnplayable:Unit = {
+  def printCardUnplayable():Unit = {
     sendMessage("Carte non jouable.")
   }
 
