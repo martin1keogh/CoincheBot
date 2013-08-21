@@ -197,6 +197,7 @@ class CoincheBot(val chan:String) extends PircBot{
       }
       else {
         listPlayers = listPlayers :+ sender
+        partie.listJoueur(listPlayers.length - 1).rename(sender)
         sendMessage(chan,sender+" rejoint la table.")
         if (listPlayers.length == 4 && partie.state == partie.State.stopped) startGame()
       }
@@ -205,7 +206,7 @@ class CoincheBot(val chan:String) extends PircBot{
 
   def botJoins(botType:String,botName:String):Unit = {
     val createBot = botType.toLowerCase match {
-      case "dumbot" => DumBot.createFromPlayer _
+      case "dumbot" => DumBot.createFromPlayerWithNewName(_:Partie,_:Joueur,botName)
       case _ => {sendMessage(chan,"Type de bot inconnu");return}
     }
     if (partie.listJoueur.count({case b:BotTrait => true;case _ => false}) == 3) sendMessage(chan,"Deja 3 bot a la table!")
@@ -217,10 +218,9 @@ class CoincheBot(val chan:String) extends PircBot{
           listPlayers = changeOneElement(listPlayers,s => s == "None",botName)
           val old = partie.listJoueur.find(j => j.nom == "None").get
           val _new = createBot(partie,old)
-          _new.rename(botName)
           partie.playerToBot(old,_new)
         } catch {
-          case e:NoSuchElementException => println("Error in playerJoins :"+e)
+          case e:NoSuchElementException => println("Error in botJoins :"+e)
         }
         // if table is full again
         if (listPlayers.length == 4 && !listPlayers.exists(_ == "None")) printer.printRestart(partie)
@@ -229,7 +229,6 @@ class CoincheBot(val chan:String) extends PircBot{
         listPlayers = listPlayers :+ botName
         val old = partie.listJoueur(listPlayers.length - 1)
         val _new = createBot(partie,old)
-        _new.rename(botName)
         partie.playerToBot(old,_new)
         if (listPlayers.length == 4 && partie.state == partie.State.stopped) startGame()
       }
@@ -243,7 +242,7 @@ class CoincheBot(val chan:String) extends PircBot{
    */
   def leave(sender:String):Unit = {
     try {
-      listPlayers = listPlayers.map(s => if (s == sender) "None" else s)
+      listPlayers = changeOneElement(listPlayers,_ == sender,"None")
       partie.listJoueur.find(_.nom == sender).foreach(_.rename("None"))
       sendMessage(chan,sender+" left.")
       // nobody left at the table
