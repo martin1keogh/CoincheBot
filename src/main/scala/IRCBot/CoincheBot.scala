@@ -370,6 +370,10 @@ class CoincheBot(val chan:String) extends PircBot{
     if (listPlayers.contains(kickedNick)) leave(kickedNick)
   }
 
+  override def onQuit(sourceNick:String , sourceLogin:String , sourceHostname:String , reason:String ) : Unit = {
+    if (listPlayers.contains(sourceNick)) leave(sourceNick)
+  }
+
   def start():Unit = {
     joinChannel(chan)
   }
