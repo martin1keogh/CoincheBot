@@ -219,6 +219,7 @@ class CoincheBot(val chan:String) extends PircBot{
           val old = partie.listJoueur.find(j => j.nom == "None").get
           val _new = createBot(partie,old)
           partie.playerToBot(old,_new)
+          sendMessage(chan,s"$botName rejoint la table.")
         } catch {
           case e:NoSuchElementException => println("Error in botJoins :"+e)
         }
@@ -230,6 +231,7 @@ class CoincheBot(val chan:String) extends PircBot{
         val old = partie.listJoueur(listPlayers.length - 1)
         val _new = createBot(partie,old)
         partie.playerToBot(old,_new)
+        sendMessage(chan,s"$botName rejoint la table.")
         if (listPlayers.length == 4 && partie.state == partie.State.stopped) startGame()
       }
     }

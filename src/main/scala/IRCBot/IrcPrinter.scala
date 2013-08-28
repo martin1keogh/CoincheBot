@@ -108,8 +108,7 @@ abstract class IrcPrinter(val chan:String) extends Printer{
 
   def printScores(NS:Int,EO:Int)(implicit listJoueur:List[Joueur]) {
     val (a::b::Nil,c::d::Nil) = listJoueur.partition(_.id%2 == 0)
-    sendMessage("score "+a+"/"+b+" :"+NS)
-    sendMessage("score "+c+"/"+d+" :"+EO)
+    sendMessage(s"score $a/$b : ${NS} --- score $c/$d : ${EO}")
   }
 
   def cardUnplayable = sendMessage("Carte injouable")
@@ -167,26 +166,25 @@ abstract class IrcPrinter(val chan:String) extends Printer{
   }
 
   def printScoreMain(scoreNS: Int, enchere: Enchere, capotChute:Boolean, generaleChute:Boolean) {
-    sendMessage("Contrat : "+enchere.toString())
-    if (enchere.contrat == 400) {
-      if (generaleChute) sendMessage("Chute !")
-      else sendMessage("Passe !")
-    }
-    else if (enchere.contrat == 250) {
-      if (capotChute) sendMessage("Chute !")
-      else sendMessage("Passe !")
-    } else {
-      val prisParNS = enchere.id % 2 == 0
-      if (prisParNS) {
-        if (scoreNS >= enchere.contrat) {sendMessage("Passe de "+(scoreNS - enchere.contrat))}
-        else {sendMessage("Chute de "+(enchere.contrat - scoreNS))}
-      } else {
-        val scoreEO = 162 - scoreNS
-        if (scoreEO >= enchere.contrat) {sendMessage("Passe de "+(scoreEO - enchere.contrat))}
-        else {sendMessage("Chute de "+(enchere.contrat - scoreEO))}
+    val result = 
+      if (enchere.contrat == 400) {
+        if (generaleChute) "Chute !" else "Passe !"
       }
+      else if (enchere.contrat == 250) {
+        if (capotChute) "Chute !" else "Passe !"
+      } else {
+        val prisParNS = enchere.id % 2 == 0
+        if (prisParNS) {
+          if (scoreNS >= enchere.contrat) "Passe de "+(scoreNS - enchere.contrat)
+          else "Chute de "+(enchere.contrat - scoreNS)
+        } else {
+          val scoreEO = 162 - scoreNS
+          if (scoreEO >= enchere.contrat) "Passe de "+(scoreEO - enchere.contrat)
+          else "Chute de "+(enchere.contrat - scoreEO)
+          }
+        }
+    sendMessage("Contrat : "+enchere.toString()+" --- "+result)
     }
-  }
 
   // printCards during bids
   def printCards(implicit j: Joueur):Unit = {
