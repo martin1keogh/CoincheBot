@@ -22,7 +22,7 @@ class CoincheBot(val chan:String) extends PircBot{
   var listPlayers = List[String]()
   var kickCounter:List[String] = List[String]()
   var voteInProgress:Boolean = false
-  val joueurNull = new Joueur(-1,"")
+  val joueurNull = new Joueur(Joueur.Undef,"")
 
 
   setName("CoincheBot")
@@ -206,7 +206,7 @@ class CoincheBot(val chan:String) extends PircBot{
 
   def botJoins(botType:String,botName:String):Unit = {
     val createBot = botType.toLowerCase match {
-      case "dumbot" => DumBot.createFromPlayerWithNewName(_:Partie,_:Joueur,botName)
+      case "dumbot" => DumBot.createFromPlayer(_:Partie,_:Joueur,botName)
       case _ => {sendMessage(chan,"Type de bot inconnu");return}
     }
     if (partie.listJoueur.count({case b:BotTrait => true;case _ => false}) == 3) sendMessage(chan,"Deja 3 bot a la table!")
@@ -289,7 +289,7 @@ class CoincheBot(val chan:String) extends PircBot{
       } catch {case e:Throwable => sendMessage(chan,"Usage : !addbot botType botName")}
       case "!removebot" => try{
         val bot = partie.listJoueur.find({case b:BotTrait => b.nom == message.split(' ')(1); case _ => false}).get
-        partie.botToPlayer(bot)
+        partie.botToPlayer(bot.asInstanceOf[BotTrait])
         leave(bot.nom)
       } catch {case e:Throwable => sendMessage(chan,"Usage : !removebot <botName>")}
       case "!create" =>
