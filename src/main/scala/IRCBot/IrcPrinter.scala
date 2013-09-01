@@ -5,6 +5,7 @@ import GameLogic.{Partie, Card, Joueur, Enchere}
 import org.jibble.pircbot.Colors
 import scala.language.implicitConversions
 import GameLogic.Bot.BotTrait
+import GameLogic.Joueur.{Nord, Sud, NordSud}
 
 abstract class IrcPrinter(val chan:String) extends Printer{
 
@@ -107,8 +108,8 @@ abstract class IrcPrinter(val chan:String) extends Printer{
   }
 
   def printScores(NS:Int,EO:Int)(implicit listJoueur:List[Joueur]) {
-    val (a::b::Nil,c::d::Nil) = listJoueur.partition(_.id%2 == 0)
-    sendMessage(s"score $a/$b : ${NS} --- score $c/$d : ${EO}")
+    val (a::b::Nil,c::d::Nil) = listJoueur.partition(_.equipe == NordSud)
+    sendMessage(s"score $a/$b : $NS --- score $c/$d : $EO")
   }
 
   def cardUnplayable = sendMessage("Carte injouable")
@@ -135,12 +136,10 @@ abstract class IrcPrinter(val chan:String) extends Printer{
     sendMessage(Colors.BOLD+">>>> "+joueur.nom+" remporte le pli <<<<")
   }
 
-  def printFin(scoreNS: Int, scoreEO: Int)(implicit listJoueur:List[Joueur]) {
-    val NS = listJoueur.filter(_.id%2 == 0)
-    val EO = listJoueur.filter(_.id%2 == 1)
+  def printFin(scoreNS: Int, scoreEO: Int, m:collection.mutable.Map[Joueur,Int])(implicit listJoueur:List[Joueur]) {
+    val (a::b::Nil,c::d::Nil) = listJoueur.partition(_.equipe == NordSud)
     sendMessage("Partie finie, score final :")
-    sendMessage(NS(0).nom+"/"+NS(1).nom+" :"+scoreNS+";"
-      +EO(0).nom+"/"+EO(1).nom + ":"+scoreEO)
+    sendMessage(s"score $a/$b : $scoreNS --- score $c/$d : $scoreEO")
 
   }
 
@@ -159,8 +158,8 @@ abstract class IrcPrinter(val chan:String) extends Printer{
 
   def printTeams(listJoueur:List[Joueur]) {
     sendMessage("Equipes : ")
-    listJoueur.groupBy(j => j.Equipe).foreach({
-      case (e,j1::j2::Nil) => sendMessage(e.toString()+" : "+j1+" "+j2)
+    listJoueur.groupBy(j => j.equipe).foreach({
+      case (e,j1::j2::Nil) => sendMessage(e.toString+" : "+j1+" "+j2)
       case (e,_) => throw new IllegalArgumentException("wrong number of player in team :"+e)
     })
   }
@@ -173,7 +172,7 @@ abstract class IrcPrinter(val chan:String) extends Printer{
       else if (enchere.contrat == 250) {
         if (capotChute) "Chute !" else "Passe !"
       } else {
-        val prisParNS = enchere.id % 2 == 0
+        val prisParNS = enchere.id == Nord || enchere.id == Sud
         if (prisParNS) {
           if (scoreNS >= enchere.contrat) "Passe de "+(scoreNS - enchere.contrat)
           else "Chute de "+(enchere.contrat - scoreNS)
