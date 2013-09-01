@@ -112,6 +112,11 @@ abstract class IrcPrinter(val chan:String) extends Printer{
     sendMessage(s"score $a/$b : $NS --- score $c/$d : $EO")
   }
 
+  def printEtoiles(m:collection.mutable.Map[Joueur,Int]) {
+    if (!m.isEmpty) sendMessage("Etoiles : "+m.mkString(", "))
+    else sendMessage("Aucune étoile !")
+  }
+
   def cardUnplayable = sendMessage("Carte injouable")
 
   def annonceImpossible = sendMessage("Annonce impossible")
@@ -140,6 +145,7 @@ abstract class IrcPrinter(val chan:String) extends Printer{
     val (a::b::Nil,c::d::Nil) = listJoueur.partition(_.equipe == NordSud)
     sendMessage("Partie finie, score final :")
     sendMessage(s"score $a/$b : $scoreNS --- score $c/$d : $scoreEO")
+    printEtoiles(m)
 
   }
 

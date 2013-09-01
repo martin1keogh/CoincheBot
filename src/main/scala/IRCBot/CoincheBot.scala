@@ -279,6 +279,7 @@ class CoincheBot(val chan:String) extends PircBot{
       case "!join" => playerJoins(sender)
       case "!quit" => quit(sender)
       case "!stop" => stopGame(sender)
+      case "!etoile" | "!etoiles" => printer.printEtoiles(partie.starMap)
       case "!encheres" | "!enchere"=> if (partie.state != partie.State.stopped) printer.printListEnchere(partie.enchereController.listEnchere)
       case "!score" |"!scores" => if (partie.state != partie.State.stopped) printer.printScores(partie.scoreTotalNS,partie.scoreTotalEO)(partie.listJoueur)
       case "!help" => if (message.trim() == "!help") printer.printHelp(channel)
