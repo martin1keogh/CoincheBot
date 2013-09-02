@@ -2,11 +2,13 @@ package IRCBot
 
 import org.jibble.pircbot._
 import com.typesafe.config._
-import GameLogic.{Joueur, Partie}
+import GameLogic.{EnchereController, Joueur, Partie}
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection.concurrent.TrieMap
 import GameLogic.Bot.{BotTrait, DumBot}
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 
 class CoincheBot(val chan:String) extends PircBot{
 
@@ -18,6 +20,10 @@ class CoincheBot(val chan:String) extends PircBot{
   }
   val reader = new IrcReader()
   val partie = new Partie(printer,reader)
+
+  // !coinche and !surCoinche timeouts
+  EnchereController.coincheTimeout = Duration(15,SECONDS)
+  EnchereController.coincheTimeout = Duration(10,SECONDS)
 
   var listPlayers = List[String]()
   var kickCounter:List[String] = List[String]()

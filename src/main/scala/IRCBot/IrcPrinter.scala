@@ -246,7 +246,7 @@ abstract class IrcPrinter(val chan:String) extends Printer{
 
 
   def printCoinche() {
-    sendMessage("Coinché !! 5 secondes pour surcoincher (commande : !sur)")
+    sendMessage("Coinché !! 10 secondes pour surcoincher (commande : !sur)")
   }
 
   def annonceBelote(first: Boolean)(implicit currentPlayer:Joueur) {
