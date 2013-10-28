@@ -6,6 +6,8 @@ import org.jibble.pircbot.Colors
 import scala.language.implicitConversions
 import GameLogic.Bot.BotTrait
 import GameLogic.Joueur.{Nord, Sud, NordSud}
+import GameLogic.Enchere._
+import GameLogic.Card._
 
 abstract class IrcPrinter(val chan:String) extends Printer{
 
@@ -19,22 +21,25 @@ abstract class IrcPrinter(val chan:String) extends Printer{
   val colorClubs = Colors.NORMAL
   val colorHeart = Colors.RED
 
-  def valeurToString(c:Card):String = c.v match {
-    case 0 => "7"
-    case 1 => "8"
-    case 2 => "9"
-    case 3 => "J"
-    case 4 => "Q"
-    case 5 => "K"
-    case 6 => "10"
-    case 7 => "A"
+  def valeurToString(c:Card):String = c.valeur match {
+    case Sept => "7"
+    case Huit => "8"
+    case Neuf => "9"
+    case Valet => "J"
+    case Dame => "Q"
+    case Roi => "K"
+    case Dix => "10"
+    case As => "A"
   }
 
-  implicit def cardToString(c:Card):String = c.famille match {
-    case 0 => colorSpade + valeurToString(c) + spade
-    case 1 => colorDiamond + valeurToString(c) + diamond
-    case 2 => colorClubs + valeurToString(c) + clubs
-    case 3 => colorHeart + valeurToString(c) + heart
+  implicit def cardToString(c:Card):String = c.couleur match {
+    case Pique => colorSpade + valeurToString(c) + spade
+    case Carreau => colorDiamond + valeurToString(c) + diamond
+    case Trefle => colorClubs + valeurToString(c) + clubs
+    case Coeur => colorHeart + valeurToString(c) + heart
+    case _ => {
+        println("Error in IrcPrinter.cardToString : called with c.couleur = SansAtout/ToutAtout/Undef"); 
+        ""}
   }
 
   def sendMessage(s:String):Unit
@@ -194,7 +199,7 @@ abstract class IrcPrinter(val chan:String) extends Printer{
   // printCards during bids
   def printCards(implicit j: Joueur):Unit = {
     val stringBuilder = new StringBuilder
-    val sbList = j.main.sortBy(-_.ordreAtout).groupBy(_.famille).mapValues(famille => {
+    val sbList = j.main.sortBy(-_.ordreAtout).groupBy(_.couleur).mapValues(famille => {
       val sb = new StringBuilder
       famille.map(cardToString).addString(sb," ")
     }).values.toList
@@ -202,14 +207,14 @@ abstract class IrcPrinter(val chan:String) extends Printer{
     sendMessage(j,stringBuilder.toString())
   }
 
-  def printCards(couleurAtout:Int)(implicit j:Joueur):Unit = {
+  def printCards(couleurAtout:Couleur)(implicit j:Joueur):Unit = {
     val stringBuilder = new StringBuilder
-    val sbList = j.main.groupBy(_.famille).mapValues(famille => {
+    val sbList = j.main.groupBy(_.couleur).mapValues(famille => {
       val sb = new StringBuilder
-      if (couleurAtout == 4 || couleurAtout == -1)  { //tout atout ou durant les encheres
+      if (couleurAtout == ToutAtout || couleurAtout == Undef)  { //tout atout ou durant les encheres
         (1,famille.sortBy(-_.ordreAtout).map(cardToString).addString(sb," "))
       }
-      else if (famille.head.famille == couleurAtout) {
+      else if (famille.head.couleur == couleurAtout) {
         sb.append("(Atout) ")
         (1,famille.sortBy(-_.ordreAtout).map(cardToString).addString(sb," "))
       } else (0,famille.sortBy(-_.ordreClassique).map(cardToString).addString(sb," "))
@@ -219,7 +224,7 @@ abstract class IrcPrinter(val chan:String) extends Printer{
     sendMessage(j,stringBuilder.toString())
   }
 
-  def printCardsToAll(couleurAtout: Int)(implicit listJoueur:List[Joueur]) {
+  def printCardsToAll(couleurAtout: Couleur)(implicit listJoueur:List[Joueur]) {
     listJoueur.foreach(j => j match {case b:BotTrait=>();case _ => printCards(couleurAtout)(j)})
   }
 
@@ -230,7 +235,7 @@ abstract class IrcPrinter(val chan:String) extends Printer{
   def printCardsToAll(implicit listJoueur:List[Joueur]) {
     def aux(j:Joueur) = {
       val stringBuilder = new StringBuilder
-      val sbList = j.main.groupBy(_.famille).map({case (id,famille) =>
+      val sbList = j.main.groupBy(_.couleur).map({case (id,famille) =>
         val sb = new StringBuilder
         famille.sortBy(-_.ordreAtout).map(cardToString).addString(sb," ")
       })
@@ -255,5 +260,5 @@ abstract class IrcPrinter(val chan:String) extends Printer{
   }
 
   // unused in CoincheBot
-  def printCards(jouables: List[Card], autres: List[Card])(implicit joueur: Joueur, couleurAtout: Int) {}
+  def printCards(jouables: List[Card], autres: List[Card])(implicit joueur: Joueur, couleurAtout: Couleur) {}
 }
