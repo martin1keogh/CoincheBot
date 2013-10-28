@@ -4,7 +4,8 @@ import org.jibble.pircbot._
 import com.typesafe.config._
 import GameLogic.{EnchereController, Joueur, Partie}
 import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
+//import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent._
 import scala.collection.concurrent.TrieMap
 import GameLogic.Bot.{BotTrait, DumBot}
 import scala.concurrent.duration.Duration
@@ -12,6 +13,7 @@ import scala.concurrent.duration._
 
 class CoincheBot(val chan:String) extends PircBot{
 
+  implicit val ec = ExecutionContext.fromExecutorService(java.util.concurrent.Executors.newFixedThreadPool(50))
 
   val printer = new IrcPrinter(chan) {
     def sendMessage(j:Joueur,s:String) = CoincheBot.this.sendMessage(j.nom,s)
@@ -392,6 +394,8 @@ object CoincheBot extends App {
   val config = ConfigFactory.load()
 
   val debug: Boolean = try{config.getBoolean("config.debug")}catch{case _:Throwable => false}
+
+  import scala.concurrent.ExecutionContext.Implicits.global
 
   def routine(chan:String,name:String,pass:String) = {
     // bot creation
